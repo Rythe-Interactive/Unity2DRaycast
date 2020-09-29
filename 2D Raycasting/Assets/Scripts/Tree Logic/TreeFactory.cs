@@ -11,7 +11,7 @@ public static class TreeFactory
         foreach (AABB currentAABB in data.OutlineAABBBounds)
             newTree.Insert(currentAABB);
         //draw tree
-        newTree.DebugDraw();
+        //   newTree.DebugDraw();
         return newTree;
     }
 }

@@ -30,7 +30,7 @@ public class TextureReader : MonoBehaviour
     private float m_Scale = 1.0f;
 
     private Sprite m_Texture;
-    [SerializeField] Texture2D m_Normal;
+  //  [SerializeField] Texture2D m_Normal;
     private List<LineSegment> m_BoundingLineSegments;
     private List<AABB> m_AABBs;
 
@@ -66,8 +66,8 @@ public class TextureReader : MonoBehaviour
 
             //   AABBExtension.DebugDrawAABB(m_textureData.TextureAABBBounds);
             Data.textures.Add(m_textureData);
-          //  int id = FrameTimePrinter.Instance().CreateNewFramePrinter("AABB Count: ");
-         //   FrameTimePrinter.Instance().GetUpdate(id, m_AABBs.Count);
+            //  int id = FrameTimePrinter.Instance().CreateNewFramePrinter("AABB Count: ");
+            //   FrameTimePrinter.Instance().GetUpdate(id, m_AABBs.Count);
             //  int id FrameTimePrinter.Instance().CreateNewFramePrinter("AABB Count:");
         }
 
@@ -91,7 +91,7 @@ public class TextureReader : MonoBehaviour
         Debug.Log(m_Texture.texture.mipmapCount);
         m_BoundingLineSegments = new List<LineSegment>();
         Color[] textureData = GetTexture(m_Texture.texture);
-        m_NormalColor = GetTexture(m_Normal);
+        //    m_NormalColor = GetTexture(m_Normal);
         m_Cells = new List<Cell>();
         int xDim = m_Texture.texture.width;
         int yDim = m_Texture.texture.height;
@@ -121,7 +121,8 @@ public class TextureReader : MonoBehaviour
                 int index = x + xDim * y;
                 bool exists = textureData[index].a != 0;
                 float4 c = new float4(textureData[index].a, textureData[index].g, textureData[index].b, textureData[index].a);
-                m_Cells.Add(new Cell(exists, index, xDim, yDim, x, y, new float2(m_NormalColor[index].r, m_NormalColor[index].g), c));
+                //   m_Cells.Add(new Cell(exists, index, xDim, yDim, x, y, new float2(m_NormalColor[index].r, m_NormalColor[index].g), c));
+                m_Cells.Add(new Cell(exists, index, xDim, yDim, x, y, new float2(0, 0), c));
             }
         }
         //  Debug.Log("Generated cells :" + m_Cells.Count);
