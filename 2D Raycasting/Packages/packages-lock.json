@@ -116,6 +116,14 @@
       "dependencies": {},
       "url": "https://packages.unity.com"
     },
+    "com.unity.render-pipelines.core": {
+      "version": "file:C:/SRP src/Graphics/com.unity.render-pipelines.core",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.unity.ugui": "1.0.0"
+      }
+    },
     "com.unity.test-framework": {
       "version": "1.1.16",
       "depth": 0,
