@@ -3,7 +3,6 @@
     [CreateAssetMenu(menuName = "Rendering/Custom Pipeline")]
     public class CustomPipelineAsset : RenderPipelineAsset
     {
-
         protected override RenderPipeline CreatePipeline()
         {
             return new CostumRenderPipeline();
@@ -11,6 +10,7 @@
     }
     public class CostumRenderPipeline : RenderPipeline
     {
+
         protected override void Render(ScriptableRenderContext context, Camera[] cameras)
         {
             CameraRenderer renderer = new CameraRenderer();
@@ -19,6 +19,10 @@
             {
                 renderer.Render(context, cam);
             }
+            OnRenderFinished();
+        }
+        private void OnRenderFinished()
+        {
         }
     }
 }

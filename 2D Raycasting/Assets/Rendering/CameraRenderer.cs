@@ -31,27 +31,32 @@ namespace UnityEngine.Rendering
             //setup camera && context
             this.m_context = context;
             this.m_cam = camera;
-
-            //grab culling parameters & return if no were found
+            m_cam.cullingMask = -1;
             if (!Cull()) return;
-
-            //get culling results based on culling parameters
-            m_CullingResults = context.Cull(ref m_cullingParams);
-
 
             //create command buffer && set name
             m_buffer = new CommandBuffer();
             m_buffer.name = m_cam.name + " Buffer";
-
             //Setup buffer
             Setup();
-            //Draw stuff
-            DrawVisibleGeometry();
-            //only exectues if in editor
-            DrawUnsupportedShaders();
-            //Draw Gizmos, only executes if in editor
-            DrawGizmos();
+            //iterate layers in reverse order
+            //layer 0 is the one in the front 4 the one in the back
+            for (int i = 4; i >= 0; i--)
+            {
+                //grab culling parameters & return if no were found
+                if (!Cull(i)) continue;
 
+                //get culling results based on culling parameters
+                m_CullingResults = context.Cull(ref m_cullingParams);
+
+
+                //Draw stuff
+                DrawVisibleGeometry();
+                //only exectues if in editor
+                DrawUnsupportedShaders();
+                //Draw Gizmos, only executes if in editor
+                DrawGizmos();
+            }
             //Submit buffer
             Submit();
         }
@@ -120,8 +125,14 @@ namespace UnityEngine.Rendering
             m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
 #endif
         }
+        //culls based on layer index
+        private bool Cull(int LayerCount)
+        {
+            m_cam.cullingMask = (1 << LayerMask.NameToLayer("2D" + LayerCount.ToString()));
+            if (m_cam.TryGetCullingParameters(out m_cullingParams)) return true;
+            return false;
 
-
+        }
         private bool Cull()
         {
             if (m_cam.TryGetCullingParameters(out m_cullingParams)) return true;
@@ -136,9 +147,7 @@ namespace UnityEngine.Rendering
                 m_context.DrawGizmos(m_cam, GizmoSubset.PreImageEffects);
                 m_context.DrawGizmos(m_cam, GizmoSubset.PostImageEffects);
             }
-
 #endif
-
         }
     }
 }
