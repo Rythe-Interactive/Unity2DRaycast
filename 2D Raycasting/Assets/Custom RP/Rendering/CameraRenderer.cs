@@ -15,7 +15,16 @@ namespace UnityEngine.Rendering
         //shaders to use
         private static Material errorMaterial;
         private static ShaderTagId standarSpriteShader = new ShaderTagId("Sprites/Default");
+        private static ShaderTagId diffuseSprite = new ShaderTagId("Sprites/Diffuse");
+
         private static ShaderTagId unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit");
+
+        //custom shaders
+
+        static ShaderTagId[] CustomShaderTagIds =
+        {
+        new ShaderTagId("Custom RP/unlit")
+        };
 
         static ShaderTagId[] legacyShaderTagIds =
         {
@@ -26,49 +35,63 @@ namespace UnityEngine.Rendering
         new ShaderTagId("VertexLMRGBM"),
         new ShaderTagId("VertexLM")
         };
-        public void Render(ScriptableRenderContext context, Camera camera)
+        public void Render(ScriptableRenderContext context, Camera camera, bool useDynmaicBatching, bool useGPUInstancing, RayCastMaster rayCaster, bool useRaycaster)
         {
             //setup camera && context
             this.m_context = context;
             this.m_cam = camera;
             m_cam.cullingMask = -1;
+            PrepareForSceneWindow();
             if (!Cull()) return;
+            m_CullingResults = context.Cull(ref m_cullingParams);
+
 
             //create command buffer && set name
             m_buffer = new CommandBuffer();
             m_buffer.name = m_cam.name + " Buffer";
             //Setup buffer
             Setup();
-            //iterate layers in reverse order
-            //layer 0 is the one in the front 4 the one in the back
-            for (int i = 4; i >= 0; i--)
-            {
-                //grab culling parameters & return if no were found
-                if (!Cull(i)) continue;
-
-                //get culling results based on culling parameters
-                m_CullingResults = context.Cull(ref m_cullingParams);
 
 
-                //Draw stuff
-                DrawVisibleGeometry();
-                //only exectues if in editor
-                DrawUnsupportedShaders();
-                //Draw Gizmos, only executes if in editor
-                DrawGizmos();
+            //Draw stuff
+            DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
+            //only exectues if in editor
+            DrawUnsupportedShaders();
+            //Draw Gizmos, only executes if in editor
+            DrawGizmos();
+
+            
+            //dispatch ray caster
+            if (useRaycaster)
+            { 
+                ExecuteComputeShader(rayCaster);
             }
             //Submit buffer
             Submit();
         }
+        private void ExecuteComputeShader(RayCastMaster master)
+        {
+            if (Application.isPlaying)
+            {
+                int width = m_cam.scaledPixelWidth;
+                int height = m_cam.scaledPixelHeight;
 
+                m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
+               // RenderTexture rt = m_buffer.GetTemporaryRT(1, width, height);
+
+
+            }
+        }
         private void Setup()
         {
             m_context.SetupCameraProperties(m_cam);
 
-            CameraClearFlags flag = m_cam.clearFlags;
+            CameraClearFlags flags = m_cam.clearFlags;
             //Clear buffer based on camera flag
-            m_buffer.ClearRenderTarget((flag & CameraClearFlags.Depth) != 0, (flag & CameraClearFlags.Color) != 0, m_cam.backgroundColor);
-
+            m_buffer.ClearRenderTarget(
+                flags <= CameraClearFlags.Depth,
+                flags == CameraClearFlags.Color,
+                flags == CameraClearFlags.Color ? m_cam.backgroundColor.linear : Color.clear);
             //begin && execute buffer
             m_buffer.BeginSample(m_buffer.name);
             ExecuteBuffer();
@@ -84,8 +107,7 @@ namespace UnityEngine.Rendering
             ExecuteBuffer();
             m_context.Submit();
         }
-
-        private void DrawVisibleGeometry()
+        private void DrawVisibleGeometry(bool useDynamicBatching, bool useGPUInstancing)
         {
             //get sorting settings from camera
             SortingSettings sortingSettings = new SortingSettings(m_cam)
@@ -93,7 +115,12 @@ namespace UnityEngine.Rendering
                 criteria = SortingCriteria.CommonOpaque
             };
             //configer draw settings with sorting settings and allowed shader
-            DrawingSettings drawingsettings = new DrawingSettings(unlitShaderTagId, sortingSettings);
+            DrawingSettings drawingsettings = new DrawingSettings(unlitShaderTagId, sortingSettings)
+            {
+                enableDynamicBatching = useDynamicBatching,
+                enableInstancing = useGPUInstancing
+            };
+            //      DrawingSettings drawingsettings = new DrawingSettings(diffuseSprite, sortingSettings);
             //specify that all render queues are allowed
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
 
@@ -102,6 +129,16 @@ namespace UnityEngine.Rendering
 
             m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
 
+            ////Draw custom shaders
+            //for (int i = 1; i < CustomShaderTagIds.Length + 1; i++)
+            //{
+            ////    Debug.Log("custom shader pass" + i);
+            //    drawingsettings.SetShaderPassName(i, CustomShaderTagIds[i - 1]);
+            //}
+            //   m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
+
+            ////m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
+
 
             sortingSettings.criteria = SortingCriteria.CommonTransparent;
             drawingsettings.sortingSettings = sortingSettings;
@@ -109,8 +146,9 @@ namespace UnityEngine.Rendering
 
             m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
 
-        }
 
+
+        }
         private void DrawUnsupportedShaders()
         {
 #if UNITY_EDITOR
@@ -146,6 +184,16 @@ namespace UnityEngine.Rendering
             {
                 m_context.DrawGizmos(m_cam, GizmoSubset.PreImageEffects);
                 m_context.DrawGizmos(m_cam, GizmoSubset.PostImageEffects);
+            }
+#endif
+        }
+
+        private void PrepareForSceneWindow()
+        {
+#if UNITY_EDITOR
+            if (m_cam.cameraType == CameraType.SceneView)
+            {
+                ScriptableRenderContext.EmitWorldGeometryForSceneView(m_cam);
             }
 #endif
         }

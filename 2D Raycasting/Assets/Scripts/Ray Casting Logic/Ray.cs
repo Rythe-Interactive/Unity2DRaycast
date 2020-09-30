@@ -20,6 +20,28 @@ public struct Ray
         return ("p" + a + " + t * " + b);
     }
 }
+public struct CamRay
+{
+    public float2 Origin;
+    public float3 Direction;
+    public CamRay(float2 newOrigin, float3 direction)
+    {
+        Origin = newOrigin;
+        Direction = math.normalize(direction);
+    }
+    public CamRay(CamRay otherRay)
+    {
+        Origin = otherRay.Origin;
+        Direction = otherRay.Direction;
+    }
+    public override string ToString()
+    {
+        string a = Origin.ToString();
+        string b = Direction.ToString();
+        return ("p" + a + " + t * " + b);
+    }
+}
+
 public static class RayExtension
 {
     public static Ray ReflectRay(this Ray ray, float2 poi, float2 normal)
