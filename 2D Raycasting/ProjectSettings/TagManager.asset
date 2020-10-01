@@ -5,6 +5,7 @@ TagManager:
   serializedVersion: 2
   tags:
   - RayCastTarget
+  - DirectionalLight
   layers:
   - Default
   - TransparentFX

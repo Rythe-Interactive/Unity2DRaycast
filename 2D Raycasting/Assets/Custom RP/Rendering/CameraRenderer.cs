@@ -12,6 +12,12 @@ namespace UnityEngine.Rendering
         private ScriptableCullingParameters m_cullingParams;
         private CullingResults m_CullingResults;
 
+        private CamerInfoComponent m_camInfo;
+        //Ray tracing stuff
+        private Material m_AAMaterial;
+
+
+
         //shaders to use
         private static Material errorMaterial;
         private static ShaderTagId standarSpriteShader = new ShaderTagId("Sprites/Default");
@@ -35,11 +41,13 @@ namespace UnityEngine.Rendering
         new ShaderTagId("VertexLMRGBM"),
         new ShaderTagId("VertexLM")
         };
-        public void Render(ScriptableRenderContext context, Camera camera, bool useDynmaicBatching, bool useGPUInstancing, RayCastMaster rayCaster, bool useRaycaster)
+        public void Render(ScriptableRenderContext context, Camera camera, bool useDynmaicBatching, bool useGPUInstancing, CamerInfoComponent info)
         {
+
             //setup camera && context
-            this.m_context = context;
-            this.m_cam = camera;
+            m_camInfo = info;
+            m_context = context;
+            m_cam = camera;
             m_cam.cullingMask = -1;
             PrepareForSceneWindow();
             if (!Cull()) return;
@@ -50,39 +58,58 @@ namespace UnityEngine.Rendering
             m_buffer = new CommandBuffer();
             m_buffer.name = m_cam.name + " Buffer";
             //Setup buffer
-            Setup();
 
+            ClearBuffer();
 
-            //Draw stuff
-            DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
-            //only exectues if in editor
-            DrawUnsupportedShaders();
-            //Draw Gizmos, only executes if in editor
-            DrawGizmos();
+            BeginBuffer();
+            //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
+            if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
+            {
+             
+                //Draw stuff
+                DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
+                //only exectues if in editor
+                DrawUnsupportedShaders();
+                //Draw Gizmos, only executes if in editor
+                DrawGizmos();
 
-            
-            //dispatch ray caster
-            if (useRaycaster)
-            { 
-                ExecuteComputeShader(rayCaster);
+            }
+            //else run comput shader
+            else
+            {
+                ExecuteComputeShader(info.RayCaster);
             }
             //Submit buffer
             Submit();
         }
+        private void InitPostProcessing()
+        {
+            if (!m_camInfo.UseAA) return;
+            //Create new material if null
+            if (m_AAMaterial == null)
+                m_AAMaterial = new Material(Shader.Find("Hidden/AntiAliasing"));
+            m_AAMaterial.SetFloat("_Sample", m_camInfo.SampleCount);
+
+        }
         private void ExecuteComputeShader(RayCastMaster master)
         {
-            if (Application.isPlaying)
+            InitPostProcessing();
+
+            int width = m_cam.scaledPixelWidth;
+            int height = m_cam.scaledPixelHeight;
+            m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
+
+            if (m_camInfo.UseAA)
             {
-                int width = m_cam.scaledPixelWidth;
-                int height = m_cam.scaledPixelHeight;
-
-                m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
-               // RenderTexture rt = m_buffer.GetTemporaryRT(1, width, height);
-
-
+                m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture, m_AAMaterial);
+                m_camInfo.SampleCount++;
             }
+            //else
+            //{
+            //    m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
+            //}
         }
-        private void Setup()
+        private void ClearBuffer()
         {
             m_context.SetupCameraProperties(m_cam);
 
@@ -92,6 +119,9 @@ namespace UnityEngine.Rendering
                 flags <= CameraClearFlags.Depth,
                 flags == CameraClearFlags.Color,
                 flags == CameraClearFlags.Color ? m_cam.backgroundColor.linear : Color.clear);
+        }
+        private void BeginBuffer()
+        {
             //begin && execute buffer
             m_buffer.BeginSample(m_buffer.name);
             ExecuteBuffer();
