@@ -9,8 +9,10 @@ public class RayCastMaster
     private Texture m_SkyBox;
     private RenderTexture m_target;
     private Camera m_cam;
-    public void Init(ComputeShader newCS, Camera cam,Texture skybox)
+    private Color m_BackgroundColor;
+    public void Init(ComputeShader newCS, Camera cam, Texture skybox, Color c)
     {
+        m_BackgroundColor = c;
         m_SkyBox = skybox;
         m_RayTracingShader = newCS;
         m_cam = cam;
@@ -20,9 +22,10 @@ public class RayCastMaster
         m_RayTracingShader.SetMatrix("_CameraToWorld", m_cam.cameraToWorldMatrix);
         m_RayTracingShader.SetMatrix("_CameraInverseProjection", m_cam.projectionMatrix.inverse);
         m_RayTracingShader.SetTexture(0, "_SkyBoxTexture", m_SkyBox);
+     //   m_RayTracingShader.SetVector("_BackgroundColor", new Vector3(m_BackgroundColor.r, m_BackgroundColor.g, m_BackgroundColor.b));
     }
 
-    
+
     public RenderTexture Render()
     {
         Debug.Log("Render!");

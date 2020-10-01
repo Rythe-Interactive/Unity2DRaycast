@@ -14,4 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_useComputeShader: 1
   m_ComputeShader: {fileID: 7200000, guid: be82d686a59502440b32d42dd4e40d38, type: 3}
-  m_SkyBoxTexture: {fileID: 2800000, guid: d9869628c2cf8d948a895a918a53a580, type: 3}
+  m_SkyBoxTexture: {fileID: 2800000, guid: 5fca04e9143d9544285cd8f8e4b1ae14, type: 3}
+  m_UseSkyBox: 0
+  m_SkyBoxColor: {r: 0, g: 0, b: 1, a: 1}

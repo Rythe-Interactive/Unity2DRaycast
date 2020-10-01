@@ -15,9 +15,16 @@
         private ComputeShader m_ComputeShader = null;
         [SerializeField]
         private Texture m_SkyBoxTexture = null;
+        [SerializeField]
+        private bool m_UseSkyBox = false;
+        [SerializeField]
+        private Color m_SkyBoxColor = Color.blue;
         protected override RenderPipeline CreatePipeline()
         {
-            return new CostumRenderPipeline(m_useDynamicBatching, m_GPUInstancing, m_useSRPBatcher, m_ComputeShader, m_useComputeShader, m_SkyBoxTexture);
+
+
+            return new CostumRenderPipeline(m_useDynamicBatching, m_GPUInstancing, m_useSRPBatcher,
+                m_ComputeShader, m_useComputeShader, m_SkyBoxTexture, m_UseSkyBox, m_SkyBoxColor);
         }
     }
     public class CostumRenderPipeline : RenderPipeline
@@ -27,7 +34,7 @@
         private bool m_useCS = false;
         private ComputeShader m_computShader;
         private RayCastMaster m_RayCastMaster;
-        public CostumRenderPipeline(bool DynamicBatching, bool Instancing, bool batcher, ComputeShader cs, bool useCS, Texture skyboxTexture)
+        public CostumRenderPipeline(bool DynamicBatching, bool Instancing, bool batcher, ComputeShader cs, bool useCS, Texture skyboxTexture, bool useSkyBox, Color color)
         {
             m_useCS = useCS;
             m_computShader = cs;
@@ -36,7 +43,7 @@
             GraphicsSettings.useScriptableRenderPipelineBatching = batcher;
 
             m_RayCastMaster = new RayCastMaster();
-            m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture);
+            m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture, color);
         }
         protected override void Render(ScriptableRenderContext context, Camera[] cameras)
         {
