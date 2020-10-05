@@ -93,6 +93,11 @@ namespace UnityEngine.Rendering
         }
         private void ExecuteComputeShader(RayCastMaster master)
         {
+            if (master == null)
+            {
+                Debug.LogError("Ray casting master is null!");
+                return;
+            }
             InitPostProcessing();
 
             int width = m_cam.scaledPixelWidth;

@@ -49,20 +49,24 @@ namespace UnityEngine.Rendering
             m_GPUInstancing = Instancing;
             GraphicsSettings.useScriptableRenderPipelineBatching = batcher;
 
-            //Init ray casting
-            m_RayCastMaster = new RayCastMaster();
-            m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture, color, seed);
-            //Init new renderer
-            m_renderer = new CameraRenderer();
-
             //cleanup camera info if new RP asset gets created // RP asset gets changed
             foreach (Camera cam in Camera.allCameras)
             {
                 cam.gameObject.RemoveComponent<CamerInfoComponent>();
                 // create new info
                 CamerInfoComponent info = cam.gameObject.AddComponent<CamerInfoComponent>();
+                //Init ray casting
+                m_RayCastMaster = new RayCastMaster();
+                m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture, color, seed, Camera.main.GetComponent<CamerInfoComponent>());
                 info.Init(m_UseAA, m_useCS, m_RayCastMaster);
             }
+
+
+           
+            //Init new renderer
+            m_renderer = new CameraRenderer();
+
+
         }
         protected override void Render(ScriptableRenderContext context, Camera[] cameras)
         {

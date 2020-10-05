@@ -1,5 +1,6 @@
 ﻿using Unity.Mathematics;
 
+[System.Serializable]
 
 public struct Sphere
 {

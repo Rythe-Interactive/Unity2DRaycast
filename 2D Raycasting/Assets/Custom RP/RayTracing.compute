@@ -15,7 +15,7 @@ float2 _Pixel;
 
 static const int MAX_BOUNCES = 8;
 static const float PI = 3.14159265f;
-
+static const float EPSILON = 0.0000001f;
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
 
@@ -54,6 +54,16 @@ struct RayHit
 	float smoothness;
 	float3 emission;
 };
+struct MeshObject
+{
+	float4x4 localToWorldMat;
+	int indices_offset;
+	int indices_count;
+};
+StructuredBuffer<MeshObject> _MeshObjects;
+StructuredBuffer<float3> _Vertices;
+StructuredBuffer<int> _Indices;
+
 //returns random number
 float Rand()
 {
@@ -109,8 +119,6 @@ RayHit CreateRay()
 	hit.emission = float3(0, 0, 0);
 	return hit;
 }
-
-
 Ray CreateRay(float3 origin, float3 direction)
 {
 	Ray ray;
@@ -131,8 +139,6 @@ Ray CreateCameraRay(float2 uv)
 	direction = normalize(direction);
 	return CreateRay(origin, direction);
 }
-//sphere is a float4( position, radius) => xyz values are pos, w is the radius
-
 void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
 {
 	float tMin = 0;
@@ -185,7 +191,37 @@ void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
 
 	}
 }
-void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
+
+bool IntersectTriangle_MT97(Ray ray, float3 vert0, float3 vert1, float3 vert2,
+	inout float t, inout float u, inout float v)
+{
+	// find vectors for two edges sharing vert0
+	float3 edge1 = vert1 - vert0;
+	float3 edge2 = vert2 - vert0;
+	// begin calculating determinant - also used to calculate U parameter
+	float3 pvec = cross(ray.direction, edge2);
+	// if determinant is near zero, ray lies in plane of triangle
+	float det = dot(edge1, pvec);
+	// use backface culling
+	if (det < EPSILON)
+		return false;
+	float inv_det = 1.0f / det;
+	// calculate distance from vert0 to ray origin
+	float3 tvec = ray.origin - vert0;
+	// calculate U parameter and test bounds
+	u = dot(tvec, pvec) * inv_det;
+	if (u < 0.0 || u > 1.0f)
+		return false;
+	// prepare to test V parameter
+	float3 qvec = cross(tvec, edge1);
+	// calculate V parameter and test bounds
+	v = dot(ray.direction, qvec) * inv_det;
+	if (v < 0.0 || u + v > 1.0f)
+		return false;
+	// calculate t, ray intersects triangle
+	t = dot(edge2, qvec) * inv_det;
+	return true;
+}void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
 {
 	//direction vector
 	float3 d = ray.origin - sphere.position.xyz;
@@ -208,6 +244,35 @@ void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
 		hit.emission = sphere.emission;
 	}
 }
+
+
+void IntersectMeshObject(Ray ray, inout RayHit hit, MeshObject meshObj)
+{
+	uint offset = meshObj.indices_offset;
+	uint count = offset + meshObj.indices_count;
+	for (uint i = offset; i < count; i += 3)
+	{
+		float3 v0 = (mul(meshObj.localToWorldMat, float4(_Vertices[_Indices[i]], 1))).xyz;
+		float3 v1 = (mul(meshObj.localToWorldMat, float4(_Vertices[_Indices[i + 1]], 1))).xyz;
+		float3 v2 = (mul(meshObj.localToWorldMat, float4(_Vertices[_Indices[i + 2]], 1))).xyz;
+
+		float t, u, v;
+		if (IntersectTriangle_MT97(ray, v0, v1, v2, t, u, v))
+		{
+			if (t > 0 && t < hit.distance)
+			{
+				hit.distance = t;
+				hit.position = ray.origin + t * ray.direction;
+				hit.normal = normalize(cross(v1 - v0, v2 - v0));
+				hit.albedo = 0.3f;
+				hit.specular = 0.65f * (float3(1, 0.4f, 0.2f));
+				hit.smoothness = 0.9f;
+				hit.emission = 0.0f;
+			}
+		}
+
+	}
+}
 void IntersectGroundPlane(Ray ray, inout RayHit hit)
 {
 	float t = -ray.origin.y / ray.direction.y;
@@ -224,7 +289,17 @@ void IntersectGroundPlane(Ray ray, inout RayHit hit)
 }
 RayHit Trace(Ray ray)
 {
+
 	RayHit hit = CreateRay();
+
+	uint count, stride;
+	_MeshObjects.GetDimensions(count, stride);
+
+	for (int i = 0; i < count; i++)
+	{
+		IntersectMeshObject(ray, hit, _MeshObjects[i]);
+	}
+
 	//intersect with ground plane
 	//IntersectGroundPlane(ray, hit);
 
@@ -237,9 +312,9 @@ RayHit Trace(Ray ray)
 	//IntersectAABB(ray, hit, box);
 	//trace spheres
 
-	uint sphereCount, stride;
-	_Spheres.GetDimensions(sphereCount, stride);
-	for (uint i = 0; i < sphereCount; i++)
+
+	_Spheres.GetDimensions(count, stride);
+	for (uint i = 0; i < count; i++)
 	{
 		IntersectSphere(ray, hit, _Spheres[i]);
 	}
@@ -267,7 +342,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 		{
 			float alpha = SmoothnessToAlpha(hit.smoothness);
 			//spec reflection
-			
+
 			ray.direction = SampleHemisphere(reflect(ray.direction, hit.normal), alpha);
 			//ray.direction = reflect(ray.direction, hit.normal);
 			float f = (alpha + 2) / (alpha + 1);

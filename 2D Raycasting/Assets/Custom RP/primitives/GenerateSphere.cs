@@ -11,15 +11,22 @@ public static class GenerateSphere
         //I assume objects are scaled uniformly for simplicity sake
         newSphere.radius = targetObj.transform.localScale.x * 0.5f;
 
+        RayTracingMaterial mat = targetObj.GetComponent<RayTracingMaterial>();
+        if (mat) return mat.sphere;
+
+        //else generate sphere
+
+
+
         //random specualrity &&albedo
         Color color = Random.ColorHSV();
         bool metal = Random.value < 0.5f;
-//        metal = true;
+        //        metal = true;
         if (metal)
         {
             //get new random color
             //newSphere.albedo = new Vector3(c.r, c.g, c.b);
-         //   newSphere.albedo = new Vector3(0, 0, 0);
+            //   newSphere.albedo = new Vector3(0, 0, 0);
 
             newSphere.specular = new Vector3(color.r, color.g, color.b);
         }
@@ -32,7 +39,7 @@ public static class GenerateSphere
         Color emission = Random.ColorHSV();
 
         newSphere.emission = new Vector3(emission.r, emission.g, emission.b);
-       // newSphere.emission = new Vector3(0, 0, 0);
+        newSphere.emission = new Vector3(1, 0, 0);
         newSphere.smoothness = UnityEngine.Random.value;
         //newSphere.albedo = metal ? new Vector3(color.r, color.g, color.b) : new Vector3(color.r, color.g, color.b);
 
