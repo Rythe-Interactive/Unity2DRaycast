@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class RayCastMaster
 {
@@ -56,14 +54,16 @@ public class RayCastMaster
         m_RayTracingShader.SetMatrix("_CameraInverseProjection", m_cam.projectionMatrix.inverse);
         m_RayTracingShader.SetTexture(0, "_SkyBoxTexture", m_SkyBox);
         m_RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
-      //  m_RayTracingShader.SetVector("_PixelOffset", new Vector2(0.5f, 0.5f));
+        //  m_RayTracingShader.SetVector("_PixelOffset", new Vector2(0.5f, 0.5f));
 
         m_RayTracingShader.SetVector("_DirLight", m_dirLight.Light);
         m_RayTracingShader.SetVector("_SkyColor", new Vector3(m_BackgroundColor.r, m_BackgroundColor.g, m_BackgroundColor.b));
         m_RayTracingShader.SetBuffer(0, "_Spheres", m_SphereBuffer);
         //    m_RayTracingShader.SetFloat("_Seed", m_seed);
-           m_RayTracingShader.SetFloat("_Seed", Random.value);
-      //  m_RayTracingShader.SetFloat("_Seed", 0);
+        //m_RayTracingShader.SetFloat("_Seed", Random.Range(-1000.0f, 1000.0f));
+        m_RayTracingShader.SetFloat("_Seed", Random.value);
+
+        //  m_RayTracingShader.SetFloat("_Seed", 0);
     }
 
     private void GetLighting()
@@ -86,7 +86,7 @@ public class RayCastMaster
 
     public RenderTexture Render()
     {
-      //  Debug.Log("Render!");
+        //  Debug.Log("Render!");
         SetShaderParams();
         InitTexture();
 

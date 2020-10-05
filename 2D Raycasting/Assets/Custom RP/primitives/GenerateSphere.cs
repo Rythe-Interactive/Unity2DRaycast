@@ -4,7 +4,6 @@ using UnityEngine;
 
 public static class GenerateSphere
 {
-    static Random rand = new Random();
     public static Sphere Generate(GameObject targetObj)
     {
         Sphere newSphere = new Sphere();
@@ -15,11 +14,10 @@ public static class GenerateSphere
         //random specualrity &&albedo
         Color color = Random.ColorHSV();
         bool metal = Random.value < 0.5f;
-        metal = true;
+//        metal = true;
         if (metal)
         {
             //get new random color
-            //Color c = Random.ColorHSV();
             //newSphere.albedo = new Vector3(c.r, c.g, c.b);
          //   newSphere.albedo = new Vector3(0, 0, 0);
 
@@ -31,9 +29,11 @@ public static class GenerateSphere
             newSphere.specular = Vector3.one * 0.04f;
         }
         newSphere.albedo = new Vector3(color.r, color.g, color.b);
+        Color emission = Random.ColorHSV();
 
-        newSphere.emission = new Vector3(0, 0, 0);
-        newSphere.smoothness = 1f;
+        newSphere.emission = new Vector3(emission.r, emission.g, emission.b);
+       // newSphere.emission = new Vector3(0, 0, 0);
+        newSphere.smoothness = UnityEngine.Random.value;
         //newSphere.albedo = metal ? new Vector3(color.r, color.g, color.b) : new Vector3(color.r, color.g, color.b);
 
         //newSphere.specular = metal ? new Vector3(color.r, color.g, color.b) : Vector3.one * 0.04f;

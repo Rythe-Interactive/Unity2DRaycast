@@ -216,8 +216,8 @@ void IntersectGroundPlane(Ray ray, inout RayHit hit)
 		hit.distance = t;
 		hit.position = ray.origin + t * ray.direction;
 		hit.normal = float3(0, 1, 0);
-		hit.albedo = float3(1, 1, 1);
-		hit.specular = float3(0.6f, 0.6f, 0.6f);
+		hit.albedo = float3(0.2f, 0.2f, 0.2f);
+		hit.specular = float3(0.1f, 0.1f, 0.1f);
 		hit.smoothness = 0.5f;
 		hit.emission = float3(0, 0, 0);
 	}
@@ -226,7 +226,7 @@ RayHit Trace(Ray ray)
 {
 	RayHit hit = CreateRay();
 	//intersect with ground plane
-	IntersectGroundPlane(ray, hit);
+	//IntersectGroundPlane(ray, hit);
 
 	//AABB box;
 	//box.posMin = float3(0.0f, 0.0f, 0.0f);
@@ -250,7 +250,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 {
 	if (hit.distance < 1.#INF)
 	{
-		hit.albedo = min(1.0f - hit.specular, hit.albedo);
+		//hit.albedo = min(1.0f - hit.specular, hit.albedo);
 		//return hit.specular;
 		float specChance = Energy(hit.specular);
 		float diffChance = Energy(hit.albedo);
@@ -267,6 +267,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 		{
 			float alpha = SmoothnessToAlpha(hit.smoothness);
 			//spec reflection
+			
 			ray.direction = SampleHemisphere(reflect(ray.direction, hit.normal), alpha);
 			//ray.direction = reflect(ray.direction, hit.normal);
 			float f = (alpha + 2) / (alpha + 1);
@@ -281,24 +282,6 @@ float3 Shade(inout Ray ray, RayHit hit)
 		}
 
 		return hit.emission;
-
-
-		//	ray.origin = hit.position + hit.normal * 0.001f;
-			/*float3 reflected = reflect(ray.direction, hit.normal);
-			ray.direction = SampleHemisphere(hit.normal);
-			float3 diffuse = 2 * min(1.0f - hit.specular, hit.albedo);
-			float alpha = 300.0f;
-			float3 specular = hit.specular * (alpha + 2) * pow(sdot(ray.direction, reflected), alpha);
-			ray.energy *= (diffuse + specular) * sdot(hit.normal, ray.direction);
-	*/
-
-
-	//return ray.direction;
-
-	//ray.direction = reflect(ray.direction, hit.normal);
-//	ray.energy *= 2 * hit.albedo * sdot(hit.normal, ray.direction);
-	//ray.energy *= hit.specular;
-
 		return 0.0f;
 	}
 	else

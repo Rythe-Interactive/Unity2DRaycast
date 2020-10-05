@@ -101,13 +101,11 @@ namespace UnityEngine.Rendering
 
             if (m_camInfo.UseAA)
             {
-                m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
-
-                for (int i = 0; i < 64; i++)
+                for (int i = 0; i < 1; i++)
                 {
                     m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
-                    m_camInfo.SampleCount++;
                 }
+
                 //blit to a converged render texture using the shader for integration
                 //blit converged RT to screen RT
                 m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
