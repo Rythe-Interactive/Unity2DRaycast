@@ -10,11 +10,11 @@ SamplerState sampler_SkyBoxTexture;
 float2 _PixelOffset;
 float4 _DirLight;
 float3 _SkyColor;
-
-
+float _Seed;
+float2 _Pixel;
 
 static const int MAX_BOUNCES = 8;
-static const float PI = 3.14159f;
+static const float PI = 3.14159265f;
 
 float4x4 _CameraToWorld;
 float4x4 _CameraInverseProjection;
@@ -25,6 +25,8 @@ struct Sphere
 	float radius;
 	float3 albedo;
 	float3 specular;
+	float smoothness;
+	float3 emission;
 };
 StructuredBuffer<Sphere> _Spheres;
 
@@ -34,6 +36,14 @@ struct Ray
 	float3 direction;
 	float3 energy;
 };
+struct AABB
+{
+	float3 posMin;
+	float3 posMax;
+	float3 posCenter;
+	float3 albedo;
+	float3 specular;
+};
 struct RayHit
 {
 	float3 position;
@@ -41,13 +51,62 @@ struct RayHit
 	float3 normal;
 	float3 albedo;
 	float3 specular;
+	float smoothness;
+	float3 emission;
 };
+//returns random number
+float Rand()
+{
+	float result = frac(sin(_Seed / 100.0f * dot(_Pixel, float2(12.9898f, 78.233f))) * 43758.5453f);
+	_Seed += 1.0f;
+	return result;
+}
+//translates smoothness into useable alpha 
+float SmoothnessToAlpha(float s)
+{
+	return pow(100.0f, s * s);
+}
+//returns energy of Color by averaging them together
+float Energy(float3 Color)
+{
+	return (dot(Color, 1.0f / 3.0f));
+}
+float3x3 GetTangentSpace(float3 normal)
+{
+	//pick cross prodcut vector
+	float3 helper = float3(1, 0, 0);
+	if (abs(normal.x) > 0.99f);
+	helper = float3(0, 0, 1);
+
+	float3 tangent = normalize(cross(normal, helper));
+	float3 binormal = normalize(cross(normal, tangent));
+	return float3x3(tangent, binormal, normal);
+}
+float3 SampleHemisphere(float3 normal, float alpha)
+{
+	//random to the power of 1 if alpha =0, to the power of 0.5 if alpha = 1
+	float cosTheta = pow(Rand(), 1.0f / (alpha + 1.0f));
+
+	float sinTheta = sqrt(max(0.0f, 1.0f - cosTheta * cosTheta));
+	float phi = 2 * PI * Rand();
+	float3 tangentSpaceDir = float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+	return mul(tangentSpaceDir, GetTangentSpace(normal));
+}
+//clamps dot product to [0,1]
+float sdot(float3 x, float3 y, float f = 1.0f)
+{
+	return saturate(dot(x, y) * f);
+}
+
+
 RayHit CreateRay()
 {
 	RayHit hit;
 	hit.position = float3(0, 0, 0);
 	hit.distance = 1.#INF;
 	hit.normal = float3(0, 0, 0);
+	hit.smoothness = 0;
+	hit.emission = float3(0, 0, 0);
 	return hit;
 }
 
@@ -71,9 +130,61 @@ Ray CreateCameraRay(float2 uv)
 	direction = mul(_CameraToWorld, float4(direction, 0.0f)).xyz;
 	direction = normalize(direction);
 	return CreateRay(origin, direction);
-
 }
 //sphere is a float4( position, radius) => xyz values are pos, w is the radius
+
+void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
+{
+	float tMin = 0;
+	float tMax = 1.#INF;
+	//iterate all axis
+	for (int i = 0; i < 3; i++)
+	{
+		//check if ray is parallel to axis
+		if (abs(ray.direction[i] < 0.001f))
+		{
+			//if parallel && origin outside of bounds there is no intersection
+			if (ray.origin[i] < box.posMin[i] || ray.origin[i] > box.posMax[i]) return;
+		}
+		else
+		{
+			float ood = 1.0f / ray.direction[i];
+			float t1 = (box.posMin[i] - ray.origin[i]) * ood;
+			float t2 = (box.posMax[i] - ray.origin[i]) * ood;
+
+			//Flip t1 && t2 if dir is negative
+			if (ood < 0.0)
+			{
+				float temp = t2;
+				t2 = t1;
+				t1 = temp;
+			}
+
+			tMin = t1 > tMin ? t1 : tMin;
+
+			tMax = t2 < tMax ? t2 : tMax;
+
+
+
+			/*	float temp1 = min(t1, t2);
+				tMin = max(tMin, temp1);
+
+				float temp2 = max(t1, t2);
+				tMax = min(tMax, temp2);*/
+			if (tMin > tMax) return;
+		}
+		//check if t is smaller than previous hit
+		if (tMin > 0 && tMin < hit.distance)
+		{
+			hit.distance = tMin;
+			hit.position = ray.origin + ray.direction * tMin;
+			//hit.normal = normalize(hit.position - box.posCenter);
+			hit.albedo = box.albedo;
+			hit.specular = box.specular;
+		}
+
+	}
+}
 void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
 {
 	//direction vector
@@ -93,6 +204,8 @@ void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
 		hit.normal = normalize(hit.position - sphere.position);
 		hit.albedo = sphere.albedo;
 		hit.specular = sphere.specular;
+		hit.smoothness = sphere.smoothness;
+		hit.emission = sphere.emission;
 	}
 }
 void IntersectGroundPlane(Ray ray, inout RayHit hit)
@@ -104,7 +217,9 @@ void IntersectGroundPlane(Ray ray, inout RayHit hit)
 		hit.position = ray.origin + t * ray.direction;
 		hit.normal = float3(0, 1, 0);
 		hit.albedo = float3(1, 1, 1);
-		hit.specular = float3(0, 0, 0);
+		hit.specular = float3(0.6f, 0.6f, 0.6f);
+		hit.smoothness = 0.5f;
+		hit.emission = float3(0, 0, 0);
 	}
 }
 RayHit Trace(Ray ray)
@@ -113,6 +228,13 @@ RayHit Trace(Ray ray)
 	//intersect with ground plane
 	IntersectGroundPlane(ray, hit);
 
+	//AABB box;
+	//box.posMin = float3(0.0f, 0.0f, 0.0f);
+	//box.posMax = float3(2.0f, 1.0f, 0.5f);
+	//box.posCenter = box.posMax - box.posMin;
+	//box.albedo = float3(1, 0, 0);
+	//box.specular = float3(0.6f, 0.6f, 0.6f);
+	//IntersectAABB(ray, hit, box);
 	//trace spheres
 
 	uint sphereCount, stride;
@@ -121,18 +243,6 @@ RayHit Trace(Ray ray)
 	{
 		IntersectSphere(ray, hit, _Spheres[i]);
 	}
-
-	//for (int i = 0; i < 6; i++)
-	//{
-	//	for (int j = 0; j < 6; j++)
-	//	{
-	//		for (int z = 0; z < 1; z++)
-	//		{
-	//			IntersectSphere(ray, hit, float4(2.5f * i + z, 1 + z * 2.5f, 2.5f * j, 1.0f));
-	//		}
-	//	}
-	//}
-	//	IntersectSphere(ray, hit, float4(0, 3.0f, 0, 1.0f));
 	return hit;
 }
 
@@ -140,34 +250,67 @@ float3 Shade(inout Ray ray, RayHit hit)
 {
 	if (hit.distance < 1.#INF)
 	{
-		//trace shadow
-		bool shadow = false;
-		Ray shadowRay = CreateRay(hit.position + hit.normal * 0.001f, -1 * _DirLight.xyz);
-		RayHit shadowHit = Trace(shadowRay);
-		if (shadowHit.distance != 1.#INF)
-			return float3(0.0f, 0.0f, 0.0f);
+		hit.albedo = min(1.0f - hit.specular, hit.albedo);
+		//return hit.specular;
+		float specChance = Energy(hit.specular);
+		float diffChance = Energy(hit.albedo);
+		float sum = specChance + diffChance;
 
+		specChance /= sum;
+		diffChance /= sum;
 
-		//brdf, this defines how much light for each color channel is reflected do not go over 1 
-	//	hit.specular;
-	//	float3 spec = float3(0.6f, 0.6f, 0.6f);
-		//slight offset to make sure the reflected ray does not intersect with collision object itself
+		float roulette = Rand();
+
 		ray.origin = hit.position + hit.normal * 0.001f;
-		//reflect direction
-		ray.direction = reflect(ray.direction, hit.normal);
-		ray.energy *= hit.specular;
+
+		if (roulette > specChance)
+		{
+			float alpha = SmoothnessToAlpha(hit.smoothness);
+			//spec reflection
+			ray.direction = SampleHemisphere(reflect(ray.direction, hit.normal), alpha);
+			//ray.direction = reflect(ray.direction, hit.normal);
+			float f = (alpha + 2) / (alpha + 1);
+			ray.energy *= (1.0f / specChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction, f);
+		}
+		else
+		{
+			//diffuse reflection
+			ray.direction = SampleHemisphere(hit.normal, 1.0f);
+			//ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
+			ray.energy *= (1.0f / diffChance) * hit.albedo;
+		}
+
+		return hit.emission;
 
 
+		//	ray.origin = hit.position + hit.normal * 0.001f;
+			/*float3 reflected = reflect(ray.direction, hit.normal);
+			ray.direction = SampleHemisphere(hit.normal);
+			float3 diffuse = 2 * min(1.0f - hit.specular, hit.albedo);
+			float alpha = 300.0f;
+			float3 specular = hit.specular * (alpha + 2) * pow(sdot(ray.direction, reflected), alpha);
+			ray.energy *= (diffuse + specular) * sdot(hit.normal, ray.direction);
+	*/
 
-		float3 albedo = hit.albedo;
 
-		return saturate(dot(hit.normal, _DirLight.xyz) * -1) * _DirLight.w * albedo;
+	//return ray.direction;
 
+	//ray.direction = reflect(ray.direction, hit.normal);
+//	ray.energy *= 2 * hit.albedo * sdot(hit.normal, ray.direction);
+	//ray.energy *= hit.specular;
+
+		return 0.0f;
 	}
 	else
 	{
 		//else hit with skybox, skybox does not reflect => energy=0
 		ray.energy = 0.0f;
+		// Sample the skybox and write it
+		float theta = acos(ray.direction.y) / -PI;
+		float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
+
+		return _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, float2(phi, theta), 0).xyz;
+
 		return _SkyColor;
 	}
 }
@@ -182,7 +325,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
 	float2 uv = float2((id.xy + _PixelOffset) / float2(width, height) * 2.0f - 1.0f);
 	Ray ray = CreateCameraRay(uv);
-
+	//Result[id.xy] = float4(ray.direction, 1);
+	_Pixel = id.xy;
 	/*RayHit hit = Trace(ray);
 	float3 result = Shade(ray, hit);*/
 
@@ -191,6 +335,9 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 	{
 		RayHit hit = Trace(ray);
 		result += ray.energy * Shade(ray, hit);
+
+
+		//	result += Shade(ray, hit);
 		if (!any(ray.energy))
 			break;
 	}

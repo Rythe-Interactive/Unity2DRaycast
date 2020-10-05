@@ -4,6 +4,8 @@ namespace UnityEngine.Rendering
     [CreateAssetMenu(menuName = "Rendering/Custom Pipeline")]
     public class CustomPipelineAsset : RenderPipelineAsset
     {
+        [SerializeField]
+        private float m_Seed = 0;
         // [SerializeField]
         private bool m_useSRPBatcher = false;
         // [SerializeField]
@@ -23,7 +25,7 @@ namespace UnityEngine.Rendering
         protected override RenderPipeline CreatePipeline()
         {
             return new CostumRenderPipeline(m_useDynamicBatching, m_GPUInstancing, m_useSRPBatcher,
-                m_ComputeShader, m_useComputeShader, m_SkyBoxTexture, m_UseAntiAliasing, m_SkyBoxColor);
+                m_ComputeShader, m_useComputeShader, m_SkyBoxTexture, m_UseAntiAliasing, m_SkyBoxColor, m_Seed);
         }
     }
     public class CostumRenderPipeline : RenderPipeline
@@ -37,7 +39,7 @@ namespace UnityEngine.Rendering
         private ComputeShader m_computShader;
         private RayCastMaster m_RayCastMaster;
         CameraRenderer m_renderer;
-        public CostumRenderPipeline(bool DynamicBatching, bool Instancing, bool batcher, ComputeShader cs, bool useCS, Texture skyboxTexture, bool useAA, Color color)
+        public CostumRenderPipeline(bool DynamicBatching, bool Instancing, bool batcher, ComputeShader cs, bool useCS, Texture skyboxTexture, bool useAA, Color color, float seed)
         {
             //set up variables
             m_UseAA = useAA;
@@ -49,7 +51,7 @@ namespace UnityEngine.Rendering
 
             //Init ray casting
             m_RayCastMaster = new RayCastMaster();
-            m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture, color);
+            m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture, color, seed);
             //Init new renderer
             m_renderer = new CameraRenderer();
 

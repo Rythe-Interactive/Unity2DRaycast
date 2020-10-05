@@ -12,8 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5b6157b420428c14ebc3c0fc4a1658d1, type: 3}
   m_Name: Custom Pipeline Asset
   m_EditorClassIdentifier: 
+  m_Seed: 0
   m_useComputeShader: 1
   m_ComputeShader: {fileID: 7200000, guid: be82d686a59502440b32d42dd4e40d38, type: 3}
-  m_SkyBoxTexture: {fileID: 2800000, guid: 5fca04e9143d9544285cd8f8e4b1ae14, type: 3}
+  m_SkyBoxTexture: {fileID: 2800000, guid: 49429de2f71492f4b950e5f426cda6e8, type: 3}
   m_UseAntiAliasing: 1
-  m_SkyBoxColor: {r: 0.28157973, g: 0.08851013, b: 0.3679245, a: 1}
+  m_SkyBoxColor: {r: 0.6179246, g: 0.9244972, b: 1, a: 1}

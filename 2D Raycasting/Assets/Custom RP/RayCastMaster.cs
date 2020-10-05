@@ -10,15 +10,20 @@ public class RayCastMaster
     private RenderTexture m_target;
     private Camera m_cam;
     private Color m_BackgroundColor;
+
+    private float m_seed = 0;
     //  private bool m_useAA = false;
 
     private uint m_currentSample = 0;
     private LightContainerComponent m_dirLight;
+
+    public RenderTexture ConvergedRT;
     // private Material m_AAMaterial;
     private Sphere[] m_Spheres;
     ComputeBuffer m_SphereBuffer;
-    public void Init(ComputeShader newCS, Camera cam, Texture skybox, Color c)
+    public void Init(ComputeShader newCS, Camera cam, Texture skybox, Color c, float seed)
     {
+        m_seed = seed;
         GetLighting();
 
         // m_useAA = useAA;
@@ -41,7 +46,7 @@ public class RayCastMaster
             m_Spheres[index] = s;
             index++;
         }
-        m_SphereBuffer = new ComputeBuffer(index, 40);
+        m_SphereBuffer = new ComputeBuffer(index, 56);
 
         m_SphereBuffer.SetData(m_Spheres);
     }
@@ -50,13 +55,15 @@ public class RayCastMaster
         m_RayTracingShader.SetMatrix("_CameraToWorld", m_cam.cameraToWorldMatrix);
         m_RayTracingShader.SetMatrix("_CameraInverseProjection", m_cam.projectionMatrix.inverse);
         m_RayTracingShader.SetTexture(0, "_SkyBoxTexture", m_SkyBox);
-        //m_RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
-        m_RayTracingShader.SetVector("_PixelOffset", new Vector2(0.5f, 0.5f));
+        m_RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
+      //  m_RayTracingShader.SetVector("_PixelOffset", new Vector2(0.5f, 0.5f));
 
         m_RayTracingShader.SetVector("_DirLight", m_dirLight.Light);
         m_RayTracingShader.SetVector("_SkyColor", new Vector3(m_BackgroundColor.r, m_BackgroundColor.g, m_BackgroundColor.b));
         m_RayTracingShader.SetBuffer(0, "_Spheres", m_SphereBuffer);
-
+        //    m_RayTracingShader.SetFloat("_Seed", m_seed);
+           m_RayTracingShader.SetFloat("_Seed", Random.value);
+      //  m_RayTracingShader.SetFloat("_Seed", 0);
     }
 
     private void GetLighting()
@@ -79,7 +86,7 @@ public class RayCastMaster
 
     public RenderTexture Render()
     {
-        Debug.Log("Render!");
+      //  Debug.Log("Render!");
         SetShaderParams();
         InitTexture();
 
@@ -102,7 +109,20 @@ public class RayCastMaster
 
             m_target.enableRandomWrite = true;
             m_target.Create();
+        }
 
+
+        if (ConvergedRT == null || ConvergedRT.width != Screen.width || ConvergedRT.height != Screen.height)
+        {
+
+            Debug.Log("Creating Converged RT!");
+            if (ConvergedRT != null)
+                ConvergedRT.Release();
+
+            ConvergedRT = new RenderTexture(Screen.width, Screen.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+
+            ConvergedRT.enableRandomWrite = true;
+            ConvergedRT.Create();
         }
     }
 }

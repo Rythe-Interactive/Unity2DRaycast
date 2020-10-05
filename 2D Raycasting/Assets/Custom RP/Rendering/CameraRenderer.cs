@@ -65,7 +65,7 @@ namespace UnityEngine.Rendering
             //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
             if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
             {
-             
+
                 //Draw stuff
                 DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
                 //only exectues if in editor
@@ -97,17 +97,28 @@ namespace UnityEngine.Rendering
 
             int width = m_cam.scaledPixelWidth;
             int height = m_cam.scaledPixelHeight;
-            m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
+            //m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
 
             if (m_camInfo.UseAA)
             {
-                m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture, m_AAMaterial);
+                m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
+
+                for (int i = 0; i < 64; i++)
+                {
+                    m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
+                    m_camInfo.SampleCount++;
+                }
+                //blit to a converged render texture using the shader for integration
+                //blit converged RT to screen RT
+                m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
+
+
                 m_camInfo.SampleCount++;
             }
-            //else
-            //{
-            //    m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
-            //}
+            else
+            {
+                m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
+            }
         }
         private void ClearBuffer()
         {
