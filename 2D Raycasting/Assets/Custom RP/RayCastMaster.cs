@@ -16,7 +16,6 @@ public class RayCastMaster
     private LightContainerComponent m_dirLight;
 
     public RenderTexture ConvergedRT;
-    private ComputeBuffer m_SphereBuffer;
 
 
     //Variables For Compute shader data
@@ -27,20 +26,19 @@ public class RayCastMaster
     private static List<MeshObject> m_MeshObjects = new List<MeshObject>();
     private static List<Vector3> m_vertices = new List<Vector3>();
     private static List<int> m_indices = new List<int>();
+    private static List<RayTracingSprite> m_Sprites = new List<RayTracingSprite>();
     private ComputeBuffer m_meshBuffer;
     private ComputeBuffer m_vertexBuffer;
     private ComputeBuffer m_IndexBuffer;
+    private ComputeBuffer m_SphereBuffer;
+    private ComputeBuffer m_SpriteBuffer;
     private static bool MeshWasRemoved = false;
     private static bool SphereWasRemoved = false;
-    //private bool firstRenderRun = true;
-
+    private static bool SpriteWasRemoved = false;
+    private Texture2DArray m_tex2DArray256 = new Texture2DArray(256, 256, 4, TextureFormat.RGBA32, false);
+    private List<Texture2D> m_tex256List = new List<Texture2D>();
     public void OnEnable()
     {
-        Debug.Log("starting Ray cast master!");
-        m_spheres = new List<Sphere>();
-        m_RayTracingObjects = new List<RayTracingMesh>();
-        m_vertices = new List<Vector3>();
-        m_indices = new List<int>();
         MeshWasRemoved = true;
         SphereWasRemoved = true;
         Rebuild();
@@ -57,32 +55,37 @@ public class RayCastMaster
         m_SkyBox = skybox;
         m_RayTracingShader = newCS;
         m_cam = cam;
+
         //make sure an initial rebuild happens
-        m_spheres = new List<Sphere>();
-        m_RayTracingObjects = new List<RayTracingMesh>();
-        m_vertices = new List<Vector3>();
-        m_indices = new List<int>();
+        //m_tex2DArray256.dimension = UnityEngine.Rendering.TextureDimension.Tex2DArray;
         MeshWasRemoved = true;
         SphereWasRemoved = true;
         Rebuild();
     }
+
+    public static void SubscribeTexture(RayTracingSprite sprite)
+    {
+        m_Sprites.Add(sprite);
+    }
+    public static void UnSubscribeTexture(RayTracingSprite sprite)
+    {
+        m_Sprites.Remove(sprite);
+        SpriteWasRemoved = true;
+    }
     public static void SubscribeSphere(RayTracingSphere sphere)
     {
-        Debug.Log("sphere subscribed!");
         m_RayTracingSpheres.Add(sphere);
     }
     public static void UnSubscribeSphere(RayTracingSphere sphere)
     {
-
         m_RayTracingSpheres.Remove(sphere);
         SphereWasRemoved = true;
     }
     public static void SubscribeMesh(RayTracingMesh mesh)
     {
-        Debug.Log("mesh subscribed!");
         m_RayTracingObjects.Add(mesh);
     }
-    public static void Unsubscribe(RayTracingMesh mesh)
+    public static void UnsubscribeMesh(RayTracingMesh mesh)
     {
         m_RayTracingObjects.Remove(mesh);
         MeshWasRemoved = true;
@@ -126,6 +129,21 @@ public class RayCastMaster
             }
             if (rebuild) RebuildSpheres();
         }
+        if (SpriteWasRemoved) RebuildSprites();
+        else
+        {
+            bool rebuild = false;
+            foreach (RayTracingSprite rtSprite in m_Sprites)
+            {
+                if (rtSprite.Rebuild == true)
+                {
+                    rebuild = true;
+                    rtSprite.Rebuild = false;
+                }
+            }
+            if (rebuild) RebuildSpheres();
+        }
+
     }
     private void SetShaderParams()
     {
@@ -142,6 +160,7 @@ public class RayCastMaster
         SetComputeBuffer("_MeshObjects", m_meshBuffer);
         SetComputeBuffer("_Vertices", m_vertexBuffer);
         SetComputeBuffer("_Indices", m_IndexBuffer);
+        SetComputeBuffer("_Sprites", m_SpriteBuffer);
     }
 
     private void GetLighting()
@@ -160,8 +179,6 @@ public class RayCastMaster
         //init info container
         m_dirLight.Init();
     }
-
-
     public RenderTexture Render()
     {
         Rebuild();
@@ -169,9 +186,9 @@ public class RayCastMaster
         SetShaderParams();
 
         m_RayTracingShader.SetTexture(0, "Result", m_target);
+        m_RayTracingShader.SetTexture(0, "_SpriteTextures_256_256", m_tex2DArray256, 0);
         int threadGroupsX = Mathf.CeilToInt(Screen.width / 8.0f);
         int threadGroupsY = Mathf.CeilToInt(Screen.height / 8.0f);
-
         m_RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
         return m_target;
     }
@@ -201,7 +218,46 @@ public class RayCastMaster
             ConvergedRT.Create();
         }
     }
+    private void RebuildSprites()
+    {
+        SpriteWasRemoved = false;
+        m_camInfo.transform.hasChanged = true;
 
+        List<SpriteRT> sprites = new List<SpriteRT>();
+        foreach (RayTracingSprite sprite in m_Sprites)
+        {
+            if (sprite == null) continue;
+            RayTracingSprite.TextureMode texMode = sprite.TexSize;
+            Texture2D tex = sprite.GetTexture();
+            int index = 0;
+            switch (texMode)
+            {
+                case RayTracingSprite.TextureMode.TEX64: break;
+                case RayTracingSprite.TextureMode.TEX128: break;
+                case RayTracingSprite.TextureMode.TEX256:
+                    //check if texture already exists
+                    if (m_tex256List.Contains(tex))
+                    {
+                        index = m_tex256List.IndexOf(tex);
+                    }
+                    else
+                    {
+                        index = m_tex256List.Count;
+                        m_tex256List.Add(tex);
+                        m_tex2DArray256.SetPixels32(tex.GetPixels32(), index, 0);
+                    }
+                    break;
+                case RayTracingSprite.TextureMode.TEX512:
+                    break;
+            }
+            SpriteRT newSprite = sprite.GenSprite();
+            newSprite.TextureIndex = index;
+            sprites.Add(newSprite);
+        }
+        CreateComputeBuffer(ref m_SpriteBuffer, sprites, 24);
+
+        m_tex2DArray256.Apply();
+    }
     private void RebuildSpheres()
     {
         Debug.Log("Rebuilding spheres");
@@ -252,27 +308,30 @@ public class RayCastMaster
     }
     private static void CreateComputeBuffer<T>(ref ComputeBuffer buffer, List<T> data, int stride) where T : struct
     {
+        Debug.Log("creating buffer");
+
         if (buffer != null)
         {
-            // if (data.Count == 0 || buffer.count != data.Count || buffer.stride != stride)
-            //{
-            buffer.Release();
-            buffer = null;
-            //}
+            if (data.Count == 0 || buffer.count != data.Count || buffer.stride != stride)
+            {
+                buffer.Release();
+                buffer = null;
+            }
         }
         if (data.Count != 0)
         {
             if (buffer == null)
             {
+                Debug.Log("buffer created!");
                 buffer = new ComputeBuffer(data.Count, stride);
             }
             buffer.SetData(data);
         }
+        else Debug.Log("no data");
     }
 
     private void SetComputeBuffer(string name, ComputeBuffer buffer)
     {
-
         if (buffer != null)
         {
             m_RayTracingShader.SetBuffer(0, name, buffer);

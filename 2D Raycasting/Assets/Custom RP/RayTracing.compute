@@ -1,6 +1,5 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
-
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 RWTexture2D<float4> Result;
@@ -50,6 +49,16 @@ struct AABB
 	float3 albedo;
 	float3 specular;
 };
+struct Quad2D
+{
+	float2 Min;
+	float2 Max;
+	float depth;
+	int TextureIndex;
+};
+StructuredBuffer<Quad2D> _Sprites;
+Texture2DArray <float4> _SpriteTextures_256_256;
+
 struct RayHit
 {
 	float3 position;
@@ -236,10 +245,50 @@ void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
 	}
 
 }
+void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
+{
 
+	//calculate point on the plane
+	float t = (quad.depth - ray.origin.z) * (1.0f / ray.direction.z);
+	//return if ray needs to travel negative direction or something has been hit before
+	if (t < 0 || t > hit.distance) return;
+	//calculate poi
+	float3 poi = ray.origin += ray.direction * t;
 
-bool IntersectTriangle_MT97(Ray ray, float3 vert0, float3 vert1, float3 vert2,
-	inout float t, inout float u, inout float v)
+	for (uint i = 0; i < 2; i++)
+	{
+		//check if x && y value lies within min && max bounds, if poi is smaller than min or larger than max return
+		if (poi[i] < quad.Min[i] || poi[i] > quad.Max[i]) return;
+	}
+	//get coordinates
+	float2 coords = poi.xy;
+	coords -= quad.Min;
+	//get dimensions
+	float Width = quad.Max.x - quad.Min.x;
+	float Height = quad.Max.y - quad.Min.y;
+
+	float2 uv = float2(coords.x / Width, coords.y / Height);
+	float4 color = _SpriteTextures_256_256[uint3(uv.x * 256, uv.y * 256, quad.TextureIndex)];
+	if (color.a == 0) return;
+	hit.albedo = color.rgb;
+
+	//hit.albedo = _SpriteTextures_256_256[uint3(uv.x, uv.y, quad.TextureIndex)].xyz;
+//	hit.albedo = float3(uv, 0);
+	//.SampleLevel(sampler_SkyBoxTexture, uvSpaceCoordinates)).xyz;
+
+//collision has been found set values && return
+	hit.position = poi;
+	float3 normal = float3(0, 0, -1);
+	hit.distance = t;
+	hit.normal = normal;
+	//hit.albedo = float3(0, 0, 0);
+	hit.specular = float3(0.1f, 0.1f, 0.1f);
+	hit.emission = float3(0, 0, 0);
+	hit.smoothness = 0.0f;
+	return;
+}
+
+bool IntersectTriangle_MT97(Ray ray, float3 vert0, float3 vert1, float3 vert2, inout float t, inout float u, inout float v)
 {
 	// find vectors for two edges sharing vert0
 	float3 edge1 = vert1 - vert0;
@@ -267,7 +316,8 @@ bool IntersectTriangle_MT97(Ray ray, float3 vert0, float3 vert1, float3 vert2,
 	// calculate t, ray intersects triangle
 	t = dot(edge2, qvec) * inv_det;
 	return true;
-}void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
+}
+void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
 {
 	//direction vector
 	float3 d = ray.origin - sphere.position.xyz;
@@ -344,27 +394,34 @@ RayHit Trace(Ray ray)
 	{
 		IntersectMeshObject(ray, hit, _MeshObjects[i]);
 	}
+	//trace quad
+	_Sprites.GetDimensions(count, stride);
+	for (uint i = 0; i < count; i++)
+	{
+		Intersect2DQuad(ray, hit, _Sprites[i]);
+	}
+
 
 	//intersect with ground plane
 	//IntersectGroundPlane(ray, hit);
 	//trace aabb
-	for (uint i = 0; i < 16; i++)
-	{
-		for (uint j = 0; j < 16; j++)
-		{
-			float offset = Rand();
-			for (uint q = 0; q < 4; q++)
-			{
-				AABB box;
-				box.posMin = float3(7.5f * i, 7.5f * q, (7.5f + offset) * j);
-				box.posMax = box.posMin + float3(5.0f, 5.0f, 5.0f);
-				box.posCenter = box.posMax - box.posMin;
-				box.albedo = float3(0.5f, 0.2f, 0.2f);
-				box.specular = float3(0.1f, 0.1f, 0.1f);
-				IntersectAABB(ray, hit, box);
-			}
-		}
-	}
+	//for (uint i = 0; i < 16; i++)
+	//{
+	//	for (uint j = 0; j < 16; j++)
+	//	{
+	//		float offset = Rand();
+	//		for (uint q = 0; q < 4; q++)
+	//		{
+	//			AABB box;
+	//			box.posMin = float3(7.5f * i, 7.5f * q, (7.5f + offset) * j);
+	//			box.posMax = box.posMin + float3(5.0f, 5.0f, 5.0f);
+	//			box.posCenter = box.posMax - box.posMin;
+	//			box.albedo = float3(0.5f, 0.2f, 0.2f);
+	//			box.specular = float3(0.1f, 0.1f, 0.1f);
+	//			IntersectAABB(ray, hit, box);
+	//		}
+	//	}
+	//}
 
 
 
@@ -419,6 +476,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 	{
 		//else hit with skybox, skybox does not reflect => energy=0
 		ray.energy = 0.0f;
+		return(0.4f, 0.45f, 0.6f);
 		// Sample the skybox and write it
 		float theta = acos(ray.direction.y) / -PI;
 		float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;

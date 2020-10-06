@@ -17,4 +17,4 @@ MonoBehaviour:
   m_ComputeShader: {fileID: 7200000, guid: be82d686a59502440b32d42dd4e40d38, type: 3}
   m_SkyBoxTexture: {fileID: 2800000, guid: 5a2bbf95cf8138d48b4bd5a816b50323, type: 3}
   m_UseAntiAliasing: 1
-  m_SkyBoxColor: {r: 0.70127267, g: 0.9187282, b: 0.9716981, a: 1}
+  m_SkyBoxColor: {r: 0.9292453, g: 0.985849, b: 1, a: 1}

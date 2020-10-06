@@ -1,0 +1,75 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+[ExecuteAlways]
+[RequireComponent(typeof(SpriteRenderer))]
+public class RayTracingSprite : MonoBehaviour
+{
+    public enum TextureMode
+    {
+        TEX512,
+        TEX256,
+        TEX128,
+        TEX64,
+    }
+    public TextureMode TexSize = TextureMode.TEX256;
+    public bool Rebuild = false;
+    private SpriteRenderer m_sr;
+    private Texture2D m_tex;
+    public void OnEnable()
+    {
+        m_sr = GetComponent<SpriteRenderer>();
+        m_tex = m_sr?.sprite.texture;
+        float max = Mathf.Max(m_tex.width, m_tex.height);
+        float pow = Mathf.Ceil(max / 64.0f);
+        switch (pow)
+        {
+            case 1:
+                TexSize = TextureMode.TEX64;
+                break;
+            case 2:
+                TexSize = TextureMode.TEX128;
+                break;
+            case 3:
+                TexSize = TextureMode.TEX256;
+                break;
+            case 4:
+                TexSize = TextureMode.TEX256;
+                break;
+        }
+
+        Rebuild = true;
+        RayCastMaster.SubscribeTexture(this);
+        m_sr = GetComponent<SpriteRenderer>();
+    }
+    public void OnDisable()
+    {
+        RayCastMaster.UnSubscribeTexture(this);
+    }
+    public void Update()
+    {
+        if (transform.hasChanged)
+        {
+            Rebuild = true;
+            transform.hasChanged = false;
+        }
+    }
+    public SpriteRT GenSprite()
+    {
+        SpriteRT sRT = new SpriteRT();
+        if (m_sr == null) return sRT;
+        sRT.posMin = m_sr.bounds.min;
+        sRT.posMax = m_sr.bounds.max;
+        sRT.depth = transform.position.z;
+
+        return sRT;
+    }
+    public Texture2D GetTexture() => m_tex;
+}
+public struct SpriteRT
+{
+    public Vector2 posMin;
+    public Vector2 posMax;
+    public float depth;
+    public int TextureIndex;
+}

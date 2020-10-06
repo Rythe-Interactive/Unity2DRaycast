@@ -15,7 +15,7 @@ public class RayTracingMesh : MonoBehaviour
     }
     private void OnDisable()
     {
-        RayCastMaster.Unsubscribe(this);
+        RayCastMaster.UnsubscribeMesh(this);
     }
     private void Update()
     {
