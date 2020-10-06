@@ -1,7 +1,8 @@
 This is a basic custom Ray tracer for Unity.
 It Uses a custum Rendering Pipeline.
 Current known Issues:
-Ray tracer will Crash if no Sphere and or no Mesh object is setup for ray tracing.
+Buffers sometimes do not get properly cleared resulting in displaying geometry that has been destroyed / disabled.
+
 
 Setup:
 Download SRP from Unity Github.

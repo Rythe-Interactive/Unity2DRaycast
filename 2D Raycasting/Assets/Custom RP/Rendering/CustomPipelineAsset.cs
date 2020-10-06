@@ -48,25 +48,24 @@ namespace UnityEngine.Rendering
             m_useDynamicBatching = DynamicBatching;
             m_GPUInstancing = Instancing;
             GraphicsSettings.useScriptableRenderPipelineBatching = batcher;
-
+            Debug.Log("Creating pipeline asset!");
             //cleanup camera info if new RP asset gets created // RP asset gets changed
             foreach (Camera cam in Camera.allCameras)
             {
-                cam.gameObject.RemoveComponent<CamerInfoComponent>();
-                // create new info
-                CamerInfoComponent info = cam.gameObject.AddComponent<CamerInfoComponent>();
+                CamerInfoComponent info = cam.GetComponent<CamerInfoComponent>();
+                //Create info if null
+                if (info == null)
+                {
+                    info = cam.gameObject.AddComponent<CamerInfoComponent>();
+                }
                 //Init ray casting
                 m_RayCastMaster = new RayCastMaster();
                 m_RayCastMaster.Init(m_computShader, Camera.main, skyboxTexture, color, seed, Camera.main.GetComponent<CamerInfoComponent>());
                 info.Init(m_UseAA, m_useCS, m_RayCastMaster);
             }
 
-
-           
             //Init new renderer
             m_renderer = new CameraRenderer();
-
-
         }
         protected override void Render(ScriptableRenderContext context, Camera[] cameras)
         {
@@ -76,9 +75,8 @@ namespace UnityEngine.Rendering
                 CameraRenderer camR = new CameraRenderer();
                 //get info from camera
                 CamerInfoComponent info = cam.GetComponent<CamerInfoComponent>();
-                //I assume my RP code works && 
                 //Create info if null
-                if ((info = cam.GetComponent<CamerInfoComponent>()) == null)
+                if (info == null)
                 {
                     info = cam.gameObject.AddComponent<CamerInfoComponent>();
                     //info.Init(false, m_useCS, m_computShader, m_RayCastMaster);

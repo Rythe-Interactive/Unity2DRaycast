@@ -1,38 +1,25 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-
-[RequireComponent(typeof(MeshFilter))]
-[RequireComponent(typeof(MeshRenderer))]
 [ExecuteAlways]
-public class RayTracingMesh : MonoBehaviour
+public class RayTracingSphere : MonoBehaviour
 {
     public bool NeedsRebuilding = false;
     public void OnEnable()
     {
         NeedsRebuilding = true;
-        RayCastMaster.SubscribeMesh(this);
+        RayCastMaster.SubscribeSphere(this);
     }
     private void OnDisable()
     {
-        RayCastMaster.Unsubscribe(this);
+        RayCastMaster.UnSubscribeSphere(this);
     }
     private void Update()
     {
         if (transform.hasChanged)
         {
-            Debug.Log("transform has changed!");
             transform.hasChanged = false;
             NeedsRebuilding = true;
         }
     }
-}
-
-
-struct MeshObject
-{
-    public Matrix4x4 localToWorldMat;
-    public int indices_offset;
-    public int indices_count;
-
 }

@@ -10,6 +10,7 @@ public class CamerInfoComponent : MonoBehaviour
     public RayCastMaster RayCaster = null;
     public void Init(bool useAntiAliasing, bool useRT, RayCastMaster raycaster)
     {
+        SampleCount = 0;
         RayCaster = raycaster;
         UseAA = useAntiAliasing;
         UseRayTracing = useRT;

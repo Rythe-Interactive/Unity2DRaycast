@@ -11,29 +11,40 @@ public class RayCastMaster
     private Color m_BackgroundColor;
 
     private float m_seed = 0;
-    //  private bool m_useAA = false;
 
     private uint m_currentSample = 0;
     private LightContainerComponent m_dirLight;
 
     public RenderTexture ConvergedRT;
-    // private Material m_AAMaterial;
-    private Sphere[] m_Spheres;
     private ComputeBuffer m_SphereBuffer;
-    private static bool m_meshObjectsNeedRebuild = true;
+
+
+    //Variables For Compute shader data
     private static List<RayTracingMesh> m_RayTracingObjects = new List<RayTracingMesh>();
+    private static List<RayTracingSphere> m_RayTracingSpheres = new List<RayTracingSphere>();
 
-
+    private static List<Sphere> m_spheres = new List<Sphere>();
     private static List<MeshObject> m_MeshObjects = new List<MeshObject>();
     private static List<Vector3> m_vertices = new List<Vector3>();
     private static List<int> m_indices = new List<int>();
     private ComputeBuffer m_meshBuffer;
     private ComputeBuffer m_vertexBuffer;
     private ComputeBuffer m_IndexBuffer;
+    private static bool MeshWasRemoved = false;
+    private static bool SphereWasRemoved = false;
+    //private bool firstRenderRun = true;
 
-
-  //  void Start() => RebuildMeshes();
-
+    public void OnEnable()
+    {
+        Debug.Log("starting Ray cast master!");
+        m_spheres = new List<Sphere>();
+        m_RayTracingObjects = new List<RayTracingMesh>();
+        m_vertices = new List<Vector3>();
+        m_indices = new List<int>();
+        MeshWasRemoved = true;
+        SphereWasRemoved = true;
+        Rebuild();
+    }
     public void Init(ComputeShader newCS, Camera cam, Texture skybox, Color c, float seed, CamerInfoComponent newInfo)
     {
         Debug.Log("init Ray tracer!");
@@ -46,60 +57,91 @@ public class RayCastMaster
         m_SkyBox = skybox;
         m_RayTracingShader = newCS;
         m_cam = cam;
-        m_meshObjectsNeedRebuild = true;
-        RebuildMeshes();
-        InitRayCastTargets();
+        //make sure an initial rebuild happens
+        m_spheres = new List<Sphere>();
+        m_RayTracingObjects = new List<RayTracingMesh>();
+        m_vertices = new List<Vector3>();
+        m_indices = new List<int>();
+        MeshWasRemoved = true;
+        SphereWasRemoved = true;
+        Rebuild();
     }
+    public static void SubscribeSphere(RayTracingSphere sphere)
+    {
+        Debug.Log("sphere subscribed!");
+        m_RayTracingSpheres.Add(sphere);
+    }
+    public static void UnSubscribeSphere(RayTracingSphere sphere)
+    {
 
+        m_RayTracingSpheres.Remove(sphere);
+        SphereWasRemoved = true;
+    }
     public static void SubscribeMesh(RayTracingMesh mesh)
     {
+        Debug.Log("mesh subscribed!");
         m_RayTracingObjects.Add(mesh);
-        m_meshObjectsNeedRebuild = true;
     }
     public static void Unsubscribe(RayTracingMesh mesh)
     {
         m_RayTracingObjects.Remove(mesh);
-        m_meshObjectsNeedRebuild = true;
+        MeshWasRemoved = true;
     }
-    private void InitRayCastTargets()
+    private void Rebuild()
     {
-        Debug.Log("Init ray caster");
+        //cancel if not running
         if (!Application.isPlaying) return;
-        GameObject[] targets = GameObject.FindGameObjectsWithTag("RayCastTarget");
-        m_Spheres = new Sphere[targets.Length];
-        int index = 0;
-        foreach (GameObject target in targets)
+        Debug.Log("Rebuilding");
+        if (m_camInfo == null) Camera.main.GetComponent<CamerInfoComponent>();
+        //rebuild if a mesh was removed
+        if (MeshWasRemoved) RebuildMeshes();
+        //else check if a mesh has moved
+        else
         {
-            Sphere s = GenerateSphere.Generate(target);
-            m_Spheres[index] = s;
-            index++;
+            bool rebuild = false;
+            foreach (RayTracingMesh rtMesh in m_RayTracingObjects)
+            {
+                if (rtMesh.NeedsRebuilding == true)
+                {
+                    rebuild = true;
+                    rtMesh.NeedsRebuilding = false;
+                }
+            }
+            //rebuild meshes
+            if (rebuild) RebuildMeshes();
         }
-        m_SphereBuffer = new ComputeBuffer(index, 56);
-
-        m_SphereBuffer.SetData(m_Spheres);
+        //rebuild spheres if a sphere has been removed
+        if (SphereWasRemoved) RebuildSpheres();
+        //else check if a sphere has been moved
+        else
+        {
+            bool rebuild = false;
+            foreach (RayTracingSphere rtSphere in m_RayTracingSpheres)
+            {
+                if (rtSphere.NeedsRebuilding == true)
+                {
+                    rebuild = true;
+                    rtSphere.NeedsRebuilding = false;
+                }
+            }
+            if (rebuild) RebuildSpheres();
+        }
     }
     private void SetShaderParams()
     {
-        //Debug.Log("setting params");
         m_RayTracingShader.SetMatrix("_CameraToWorld", m_cam.cameraToWorldMatrix);
         m_RayTracingShader.SetMatrix("_CameraInverseProjection", m_cam.projectionMatrix.inverse);
         m_RayTracingShader.SetTexture(0, "_SkyBoxTexture", m_SkyBox);
         m_RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
-        //  m_RayTracingShader.SetVector("_PixelOffset", new Vector2(0.5f, 0.5f));
 
         m_RayTracingShader.SetVector("_DirLight", m_dirLight.Light);
         m_RayTracingShader.SetVector("_SkyColor", new Vector3(m_BackgroundColor.r, m_BackgroundColor.g, m_BackgroundColor.b));
-        m_RayTracingShader.SetBuffer(0, "_Spheres", m_SphereBuffer);
-        //    m_RayTracingShader.SetFloat("_Seed", m_seed);
-        //m_RayTracingShader.SetFloat("_Seed", Random.Range(-1000.0f, 1000.0f));
         m_RayTracingShader.SetFloat("_Seed", Random.value);
 
-        //  m_RayTracingShader.SetFloat("_Seed", 0);
-        RebuildMeshes();
+        SetComputeBuffer("_Spheres", m_SphereBuffer);
         SetComputeBuffer("_MeshObjects", m_meshBuffer);
         SetComputeBuffer("_Vertices", m_vertexBuffer);
         SetComputeBuffer("_Indices", m_IndexBuffer);
-
     }
 
     private void GetLighting()
@@ -122,9 +164,9 @@ public class RayCastMaster
 
     public RenderTexture Render()
     {
-        //  Debug.Log("Render!");
-        SetShaderParams();
+        Rebuild();
         InitTexture();
+        SetShaderParams();
 
         m_RayTracingShader.SetTexture(0, "Result", m_target);
         int threadGroupsX = Mathf.CeilToInt(Screen.width / 8.0f);
@@ -160,24 +202,32 @@ public class RayCastMaster
         }
     }
 
+    private void RebuildSpheres()
+    {
+        Debug.Log("Rebuilding spheres");
 
+        SphereWasRemoved = false;
+        m_camInfo.transform.hasChanged = true;
+        m_spheres.Clear();
+        foreach (RayTracingSphere rtSphere in m_RayTracingSpheres)
+        {
+            if (rtSphere != null)
+                m_spheres.Add(GenerateSphere.Generate(rtSphere.gameObject));
+        }
+        CreateComputeBuffer(ref m_SphereBuffer, m_spheres, 56);
+    }
     private void RebuildMeshes()
     {
-        if (!m_meshObjectsNeedRebuild) return;
+        Debug.Log("Rebuilding meshes");
 
-        m_meshObjectsNeedRebuild = false;
-        m_camInfo.SampleCount = 0;
+        m_camInfo.transform.hasChanged = true;
+        MeshWasRemoved = false;
 
         m_MeshObjects.Clear();
         m_vertices.Clear();
         m_indices.Clear();
-
-        Debug.Log("building!");
-        int indexer = 0;
-
         foreach (RayTracingMesh rtObj in m_RayTracingObjects)
         {
-            Debug.Log(indexer++);
             Mesh currentMesh = rtObj.GetComponent<MeshFilter>().sharedMesh;
 
             int firstVertex = m_vertices.Count;
@@ -194,25 +244,24 @@ public class RayCastMaster
                 indices_count = indices.Length
             });
         }
+
         CreateComputeBuffer(ref m_meshBuffer, m_MeshObjects, 72);
         CreateComputeBuffer(ref m_IndexBuffer, m_indices, 4);
         CreateComputeBuffer(ref m_vertexBuffer, m_vertices, 12);
+
     }
-
-
     private static void CreateComputeBuffer<T>(ref ComputeBuffer buffer, List<T> data, int stride) where T : struct
     {
         if (buffer != null)
         {
-            if (data.Count == 0 || buffer.count != data.Count || buffer.stride != stride)
-            {
-                buffer.Release();
-                buffer = null;
-            }
+            // if (data.Count == 0 || buffer.count != data.Count || buffer.stride != stride)
+            //{
+            buffer.Release();
+            buffer = null;
+            //}
         }
         if (data.Count != 0)
         {
-
             if (buffer == null)
             {
                 buffer = new ComputeBuffer(data.Count, stride);

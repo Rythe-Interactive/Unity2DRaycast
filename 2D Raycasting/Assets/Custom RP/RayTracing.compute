@@ -13,6 +13,12 @@ float3 _SkyColor;
 float _Seed;
 float2 _Pixel;
 
+
+static const float3 FRONT_NORMAL = float3(0, 0, -1);
+static const float3 LEFT_NORMAL = float3(-1, 0, 0);
+static const float3 BOT_NORMAL = float3(0, -1, 0);
+
+
 static const int MAX_BOUNCES = 8;
 static const float PI = 3.14159265f;
 static const float EPSILON = 0.0000001f;
@@ -143,54 +149,94 @@ void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
 {
 	float tMin = 0;
 	float tMax = 1.#INF;
-	//iterate all axis
-	for (int i = 0; i < 3; i++)
+
+	float3 invD = rcp(ray.direction);
+	float3 t1s = (box.posMin - ray.origin) * invD;
+	float3 t2s = (box.posMax - ray.origin) * invD;
+
+	float3 tSmaller = min(t1s, t2s);
+	float3 tLarger = max(t1s, t2s);
+
+	tMin = max(tMin, max(tSmaller[0], max(tSmaller[1], tSmaller[2])));
+	tMax = min(tMax, min(tLarger[0], min(tLarger[1], tLarger[2])));
+
+	if (tMin > tMax) return;
+
+	//check if t is smaller than previous hit
+	if (tMin > 0 && tMin < hit.distance)
 	{
-		//check if ray is parallel to axis
-		if (abs(ray.direction[i] < 0.001f))
+		hit.position = ray.origin + ray.direction * tMin;
+		//get normal
+		float3 normal = float3(1, 0, 0);
+
+		//get normal, iterate all axis
+		for (uint i = 0; i < 3; i++)
 		{
-			//if parallel && origin outside of bounds there is no intersection
-			if (ray.origin[i] < box.posMin[i] || ray.origin[i] > box.posMax[i]) return;
-		}
-		else
-		{
-			float ood = 1.0f / ray.direction[i];
-			float t1 = (box.posMin[i] - ray.origin[i]) * ood;
-			float t2 = (box.posMax[i] - ray.origin[i]) * ood;
+			//check if poi lays on a face parallel to axis
+			if (hit.position[i] > box.posMin[i] && hit.position[i] < box.posMax[i]) continue;
 
-			//Flip t1 && t2 if dir is negative
-			if (ood < 0.0)
-			{
-				float temp = t2;
-				t2 = t1;
-				t1 = temp;
-			}
+			float dir = 0;
+			//if ray lays on min face normal direction should be negitave
+			if (hit.position[i] == box.posMin[i])
+				dir = -1;
+			//assume that else point lays on max face, normal should be positive
+			else if (hit.position[i] == box.posMax[i])
+				dir = 1;
 
-			tMin = t1 > tMin ? t1 : tMin;
-
-			tMax = t2 < tMax ? t2 : tMax;
-
-
-
-			/*	float temp1 = min(t1, t2);
-				tMin = max(tMin, temp1);
-
-				float temp2 = max(t1, t2);
-				tMax = min(tMax, temp2);*/
-			if (tMin > tMax) return;
-		}
-		//check if t is smaller than previous hit
-		if (tMin > 0 && tMin < hit.distance)
-		{
-			hit.distance = tMin;
-			hit.position = ray.origin + ray.direction * tMin;
-			//hit.normal = normalize(hit.position - box.posCenter);
-			hit.albedo = box.albedo;
-			hit.specular = box.specular;
+			//assign normal manually bc hlsl is stuipid and lets me only read using I-values
+			if (i == 0)normal.x = dir;
+			else if (i == 1) normal.y = dir;
+			else normal.z = dir;
+			break;
 		}
 
+		hit.distance = tMin;
+		hit.normal = normal;
+		hit.albedo = box.albedo;
+		hit.specular = box.specular;
+		hit.emission = float3(0, 0, 0);
+		hit.smoothness = 0.0f;
 	}
+
+
+	//check if t is smaller than previous hit
+	if (tMin > 0 && tMin < hit.distance)
+	{
+		hit.position = ray.origin + ray.direction * tMin;
+
+		float3 normal = float3(0, 0, 0);
+
+		//get normal, iterate all axis
+		for (uint i = 0; i < 3; i++)
+		{
+			//check if poi lays on a face parallel to axis
+			if (hit.position[i] > box.posMin[i] && hit.position[i] < box.posMax[i]) continue;
+
+			float dir = 0;
+			//if ray lays on min face normal direction should be negitave
+			if (hit.position[i] == box.posMin[i])
+				dir = -1;
+			//assume that else point lays on max face, normal should be positive
+			else if (hit.position[i] == box.posMax[i])
+				dir = 1;
+
+			//assign normal manually bc hlsl is stuipid and lets me only read using I-values
+			if (i == 0)normal.x = dir;
+			else if (i == 1) normal.y = dir;
+			else normal.z = dir;
+			break;
+		}
+
+		hit.distance = tMin;
+		hit.normal = normal;
+		hit.albedo = box.albedo;
+		hit.specular = box.specular;
+		hit.emission = float3(0, 0, 0);
+		hit.smoothness = 0.0f;
+	}
+
 }
+
 
 bool IntersectTriangle_MT97(Ray ray, float3 vert0, float3 vert1, float3 vert2,
 	inout float t, inout float u, inout float v)
@@ -281,7 +327,7 @@ void IntersectGroundPlane(Ray ray, inout RayHit hit)
 		hit.distance = t;
 		hit.position = ray.origin + t * ray.direction;
 		hit.normal = float3(0, 1, 0);
-		hit.albedo = float3(0.2f, 0.2f, 0.2f);
+		hit.albedo = float3(0.3f, 0.6f, 0.2f);
 		hit.specular = float3(0.1f, 0.1f, 0.1f);
 		hit.smoothness = 0.5f;
 		hit.emission = float3(0, 0, 0);
@@ -289,12 +335,11 @@ void IntersectGroundPlane(Ray ray, inout RayHit hit)
 }
 RayHit Trace(Ray ray)
 {
-
+	//init variables
 	RayHit hit = CreateRay();
-
 	uint count, stride;
+	//trace triangles / meshes
 	_MeshObjects.GetDimensions(count, stride);
-
 	for (int i = 0; i < count; i++)
 	{
 		IntersectMeshObject(ray, hit, _MeshObjects[i]);
@@ -302,17 +347,28 @@ RayHit Trace(Ray ray)
 
 	//intersect with ground plane
 	//IntersectGroundPlane(ray, hit);
+	//trace aabb
+	for (uint i = 0; i < 16; i++)
+	{
+		for (uint j = 0; j < 16; j++)
+		{
+			float offset = Rand();
+			for (uint q = 0; q < 4; q++)
+			{
+				AABB box;
+				box.posMin = float3(7.5f * i, 7.5f * q, (7.5f + offset) * j);
+				box.posMax = box.posMin + float3(5.0f, 5.0f, 5.0f);
+				box.posCenter = box.posMax - box.posMin;
+				box.albedo = float3(0.5f, 0.2f, 0.2f);
+				box.specular = float3(0.1f, 0.1f, 0.1f);
+				IntersectAABB(ray, hit, box);
+			}
+		}
+	}
 
-	//AABB box;
-	//box.posMin = float3(0.0f, 0.0f, 0.0f);
-	//box.posMax = float3(2.0f, 1.0f, 0.5f);
-	//box.posCenter = box.posMax - box.posMin;
-	//box.albedo = float3(1, 0, 0);
-	//box.specular = float3(0.6f, 0.6f, 0.6f);
-	//IntersectAABB(ray, hit, box);
-	//trace spheres
 
 
+	//	trace spheres
 	_Spheres.GetDimensions(count, stride);
 	for (uint i = 0; i < count; i++)
 	{
