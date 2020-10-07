@@ -16,27 +16,34 @@ public class RayTracingSprite : MonoBehaviour
     public bool Rebuild = false;
     private SpriteRenderer m_sr;
     private Texture2D m_tex;
+    public int Dimensions = 0;
     public void OnEnable()
     {
         m_sr = GetComponent<SpriteRenderer>();
         m_tex = m_sr?.sprite.texture;
         float max = Mathf.Max(m_tex.width, m_tex.height);
         float pow = Mathf.Ceil(max / 64.0f);
-        switch (pow)
+        if (pow == 1)
         {
-            case 1:
-                TexSize = TextureMode.TEX64;
-                break;
-            case 2:
-                TexSize = TextureMode.TEX128;
-                break;
-            case 3:
-                TexSize = TextureMode.TEX256;
-                break;
-            case 4:
-                TexSize = TextureMode.TEX256;
-                break;
+            TexSize = TextureMode.TEX64;
+            Dimensions = 64;
         }
+        if (pow == 2)
+        {
+            TexSize = TextureMode.TEX128;
+            Dimensions = 128;
+        }
+        if (pow == 3 || pow == 4)
+        {
+            TexSize = TextureMode.TEX256;
+            Dimensions = 256;
+        }
+        if(pow >=5 && pow <= 8) 
+        {
+            TexSize = TextureMode.TEX512;
+            Dimensions = 512;
+        }
+
 
         Rebuild = true;
         RayCastMaster.SubscribeTexture(this);
@@ -61,6 +68,10 @@ public class RayTracingSprite : MonoBehaviour
         sRT.posMin = m_sr.bounds.min;
         sRT.posMax = m_sr.bounds.max;
         sRT.depth = transform.position.z;
+        sRT.TextureDimensions = Dimensions;
+
+
+
 
         return sRT;
     }
@@ -72,4 +83,5 @@ public struct SpriteRT
     public Vector2 posMax;
     public float depth;
     public int TextureIndex;
+    public int TextureDimensions;
 }

@@ -35,8 +35,12 @@ public class RayCastMaster
     private static bool MeshWasRemoved = false;
     private static bool SphereWasRemoved = false;
     private static bool SpriteWasRemoved = false;
+    private Texture2DArray m_tex2DArray512 = new Texture2DArray(512, 512, 4, TextureFormat.RGBA32, false);
     private Texture2DArray m_tex2DArray256 = new Texture2DArray(256, 256, 4, TextureFormat.RGBA32, false);
+    private Texture2DArray m_tex2DArray128 = new Texture2DArray(128, 128, 4, TextureFormat.RGBA32, false);
+    private List<Texture2D> m_tex512List = new List<Texture2D>();
     private List<Texture2D> m_tex256List = new List<Texture2D>();
+    private List<Texture2D> m_tex128List = new List<Texture2D>();
     public void OnEnable()
     {
         MeshWasRemoved = true;
@@ -57,6 +61,12 @@ public class RayCastMaster
         m_cam = cam;
 
         //make sure an initial rebuild happens
+        m_tex2DArray512 = new Texture2DArray(512, 512, 4, TextureFormat.RGBA32, false);
+        m_tex2DArray256 = new Texture2DArray(256, 256, 4, TextureFormat.RGBA32, false);
+        m_tex2DArray128 = new Texture2DArray(128, 128, 4, TextureFormat.RGBA32, false);
+        m_tex512List.Clear();
+        m_tex256List.Clear();
+        m_tex128List.Clear();
         //m_tex2DArray256.dimension = UnityEngine.Rendering.TextureDimension.Tex2DArray;
         MeshWasRemoved = true;
         SphereWasRemoved = true;
@@ -94,7 +104,7 @@ public class RayCastMaster
     {
         //cancel if not running
         if (!Application.isPlaying) return;
-        Debug.Log("Rebuilding");
+        //Debug.Log("Rebuilding");
         if (m_camInfo == null) Camera.main.GetComponent<CamerInfoComponent>();
         //rebuild if a mesh was removed
         if (MeshWasRemoved) RebuildMeshes();
@@ -141,7 +151,7 @@ public class RayCastMaster
                     rtSprite.Rebuild = false;
                 }
             }
-            if (rebuild) RebuildSpheres();
+            if (rebuild) RebuildSprites();
         }
 
     }
@@ -186,7 +196,10 @@ public class RayCastMaster
         SetShaderParams();
 
         m_RayTracingShader.SetTexture(0, "Result", m_target);
+        m_RayTracingShader.SetTexture(0, "_SpriteTextures_512_512", m_tex2DArray512, 0);
         m_RayTracingShader.SetTexture(0, "_SpriteTextures_256_256", m_tex2DArray256, 0);
+        m_RayTracingShader.SetTexture(0, "_SpriteTextures_128_128", m_tex2DArray128, 0);
+
         int threadGroupsX = Mathf.CeilToInt(Screen.width / 8.0f);
         int threadGroupsY = Mathf.CeilToInt(Screen.height / 8.0f);
         m_RayTracingShader.Dispatch(0, threadGroupsX, threadGroupsY, 1);
@@ -220,6 +233,7 @@ public class RayCastMaster
     }
     private void RebuildSprites()
     {
+        Debug.Log("rebuilding sprites!");
         SpriteWasRemoved = false;
         m_camInfo.transform.hasChanged = true;
 
@@ -233,11 +247,23 @@ public class RayCastMaster
             switch (texMode)
             {
                 case RayTracingSprite.TextureMode.TEX64: break;
-                case RayTracingSprite.TextureMode.TEX128: break;
+                case RayTracingSprite.TextureMode.TEX128:
+                    if (m_tex128List.Contains(tex))
+                    {
+                        Debug.Log("countains!");
+                        index = m_tex128List.IndexOf(tex);
+                    }
+                    else
+                    {
+                        index = m_tex128List.Count;
+                        m_tex128List.Add(tex);
+                        m_tex2DArray128.SetPixels32(tex.GetPixels32(), index, 0);
+                    }
+                    break;
                 case RayTracingSprite.TextureMode.TEX256:
-                    //check if texture already exists
                     if (m_tex256List.Contains(tex))
                     {
+                        Debug.Log("countains!");
                         index = m_tex256List.IndexOf(tex);
                     }
                     else
@@ -248,15 +274,36 @@ public class RayCastMaster
                     }
                     break;
                 case RayTracingSprite.TextureMode.TEX512:
+                    if (m_tex512List.Contains(tex))
+                    {
+                        Debug.Log("countains!");
+                        index = m_tex512List.IndexOf(tex);
+                    }
+                    else
+                    {
+                        index = m_tex512List.Count;
+                        m_tex512List.Add(tex);
+                        m_tex2DArray512.SetPixels32(tex.GetPixels32(), index, 0);
+                    }
                     break;
             }
             SpriteRT newSprite = sprite.GenSprite();
             newSprite.TextureIndex = index;
             sprites.Add(newSprite);
         }
-        CreateComputeBuffer(ref m_SpriteBuffer, sprites, 24);
+        CreateComputeBuffer(ref m_SpriteBuffer, sprites, 28);
+        Debug.Log("128 count!" + m_tex128List.Count);
+        Debug.Log("256 count!" + m_tex256List.Count);
+        Debug.Log("512 count!" + m_tex512List.Count);
+        Debug.Log("texture 512 index0 length!" + m_tex2DArray512.GetPixels32(0).Length);
+   //     Debug.Log("texture 256 length!" + m_tex2DArray256);
 
+        Debug.Log("256 count!" + m_tex256List.Count);
+        Debug.Log("512 count!" + m_tex512List.Count);
+        m_tex2DArray512.Apply();
         m_tex2DArray256.Apply();
+        m_tex2DArray128.Apply();
+
     }
     private void RebuildSpheres()
     {

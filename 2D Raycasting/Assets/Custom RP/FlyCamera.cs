@@ -29,9 +29,16 @@ public class FlyCamera : MonoBehaviour
         Debug.Log("FlyCamera Awake() - RESETTING CAMERA POSITION"); // nop?
                                                                     // nop:
                                                                     //transform.position.Set(0,8,-32);
-                                                                    //transform.rotation.Set(15,0,0,1);
-                                                                    //transform.position = new Vector3(0, 8, -32);
-                                                                    //transform.rotation = Quaternion.Euler(25, 0, 0);
+        if (this.GetComponent<Camera>().orthographic)
+        {
+            float depth = 0;
+            depth = transform.position.z;
+            depth *= 40;
+            Vector3 offset = new Vector3(0, 0, depth);
+            transform.position += offset;
+        }
+        //transform.position = new Vector3(0, 8, -32);
+        //transform.rotation = Quaternion.Euler(25, 0, 0);
     }
 
 
@@ -72,6 +79,7 @@ public class FlyCamera : MonoBehaviour
         }
 
         p = p * Time.deltaTime;
+
         Vector3 newPosition = transform.position;
         if (Input.GetKey(KeyCode.Space)
             || (movementStaysFlat && !(rotateOnlyIfMousedown && Input.GetMouseButton(1))))
@@ -79,6 +87,8 @@ public class FlyCamera : MonoBehaviour
             transform.Translate(p);
             newPosition.x = transform.position.x;
             newPosition.z = transform.position.z;
+            newPosition.y = transform.position.y;
+
             transform.position = newPosition;
         }
         else
@@ -93,19 +103,19 @@ public class FlyCamera : MonoBehaviour
         Vector3 p_Velocity = new Vector3();
         if (Input.GetKey(KeyCode.W))
         {
-            if (this.GetComponent<Camera>().orthographic)
-                p_Velocity += new Vector3(0, 1, 0);
-            else
-                p_Velocity += new Vector3(0, 0, 1);
+            // if (this.GetComponent<Camera>().orthographic)
+            p_Velocity += new Vector3(0, 1, 0);
+            //    else
+            //     p_Velocity += new Vector3(0, 0, 1);
 
 
         }
         if (Input.GetKey(KeyCode.S))
         {
-            if (this.GetComponent<Camera>().orthographic)
-                p_Velocity += new Vector3(0, -1, 0);
-            else
-                p_Velocity += new Vector3(0, 0, -1);
+            //  if (this.GetComponent<Camera>().orthographic)
+            p_Velocity += new Vector3(0, -1, 0);
+            //   else
+            //       p_Velocity += new Vector3(0, 0, -1);
         }
         if (Input.GetKey(KeyCode.A))
         {

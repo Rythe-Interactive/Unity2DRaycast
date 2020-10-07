@@ -30,8 +30,6 @@ namespace UnityEngine.Rendering
     }
     public class CostumRenderPipeline : RenderPipeline
     {
-
-
         private bool m_useDynamicBatching = false;
         private bool m_GPUInstancing = false;
         private bool m_useCS = false;

@@ -55,9 +55,12 @@ struct Quad2D
 	float2 Max;
 	float depth;
 	int TextureIndex;
+	int TextureDimensions;
 };
 StructuredBuffer<Quad2D> _Sprites;
+Texture2DArray <float4> _SpriteTextures_512_512;
 Texture2DArray <float4> _SpriteTextures_256_256;
+Texture2DArray <float4> _SpriteTextures_128_128;
 
 struct RayHit
 {
@@ -268,7 +271,27 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 	float Height = quad.Max.y - quad.Min.y;
 
 	float2 uv = float2(coords.x / Width, coords.y / Height);
-	float4 color = _SpriteTextures_256_256[uint3(uv.x * 256, uv.y * 256, quad.TextureIndex)];
+	float4 color = float4(0, 0, 0, 0);
+	if (quad.TextureDimensions == 64)
+	{
+		// color = _SpriteTextures_256_256[uint3(uv.x * 64, uv.y * 64, quad.TextureIndex)];
+	}
+	else if (quad.TextureDimensions == 128)
+	{
+		color = _SpriteTextures_128_128[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)];
+
+	}
+	else if (quad.TextureDimensions == 256)
+	{
+		color = _SpriteTextures_256_256[uint3(uv.x * 256, uv.y * 256, quad.TextureIndex)];
+
+	}
+	else if (quad.TextureDimensions == 512)
+	{
+		color = _SpriteTextures_512_512[uint3(uv.x * 512, uv.y * 512, quad.TextureIndex)];
+	}
+
+
 	if (color.a == 0) return;
 	hit.albedo = color.rgb;
 
@@ -394,12 +417,15 @@ RayHit Trace(Ray ray)
 	{
 		IntersectMeshObject(ray, hit, _MeshObjects[i]);
 	}
-	//trace quad
+
+
+	//trace sprites
 	_Sprites.GetDimensions(count, stride);
 	for (uint i = 0; i < count; i++)
 	{
 		Intersect2DQuad(ray, hit, _Sprites[i]);
 	}
+
 
 
 	//intersect with ground plane
@@ -476,7 +502,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 	{
 		//else hit with skybox, skybox does not reflect => energy=0
 		ray.energy = 0.0f;
-		return(0.4f, 0.45f, 0.6f);
+		return(1.0f, 0.1f, 0.1f);
 		// Sample the skybox and write it
 		float theta = acos(ray.direction.y) / -PI;
 		float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
