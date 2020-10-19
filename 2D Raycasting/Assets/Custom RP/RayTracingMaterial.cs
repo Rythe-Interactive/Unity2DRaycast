@@ -9,7 +9,7 @@ public class RayTracingMaterial : MonoBehaviour
     public Color Specular;
     [Range(0, 1)]
     public float Smoothness;
-
+    public float LightStrenght = 1.0f;
     public Sphere sphere;
 
     private void OnValidate()
@@ -24,7 +24,7 @@ public class RayTracingMaterial : MonoBehaviour
         sphere.albedo = c;
 
         Vector3 E = new Vector3(Emission.r, Emission.g, Emission.b);
-        sphere.emission = E;
+        sphere.emission = E * LightStrenght;
 
         Vector3 S = new Vector3(Specular.r, Specular.g, Specular.b);
         sphere.specular = S;

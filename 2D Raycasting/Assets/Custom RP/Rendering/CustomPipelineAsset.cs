@@ -50,6 +50,7 @@ namespace UnityEngine.Rendering
             //cleanup camera info if new RP asset gets created // RP asset gets changed
             foreach (Camera cam in Camera.allCameras)
             {
+                cam.depthTextureMode = DepthTextureMode.Depth;
                 CamerInfoComponent info = cam.GetComponent<CamerInfoComponent>();
                 //Create info if null
                 if (info == null)

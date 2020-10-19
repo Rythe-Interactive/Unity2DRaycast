@@ -7,12 +7,19 @@ public static class GenerateSphere
     public static Sphere Generate(GameObject targetObj)
     {
         Sphere newSphere = new Sphere();
+
+
+        RayTracingMaterial mat = targetObj.GetComponent<RayTracingMaterial>();
+        if (mat)
+        {
+            newSphere = mat.sphere;
+            newSphere.position = targetObj.transform.position;
+            return newSphere;
+        }
+
         newSphere.position = targetObj.transform.position;
         //I assume objects are scaled uniformly for simplicity sake
         newSphere.radius = targetObj.transform.localScale.x * 0.5f;
-
-        RayTracingMaterial mat = targetObj.GetComponent<RayTracingMaterial>();
-        if (mat) return mat.sphere;
         //else generate sphere
 
         //random specualrity &&albedo
@@ -30,7 +37,7 @@ public static class GenerateSphere
         Color emission = Random.ColorHSV();
 
         newSphere.emission = new Vector3(emission.r, emission.g, emission.b);
-        newSphere.emission = new Vector3(1, 0, 0);
+       // newSphere.emission = new Vector3(1, 0, 0);
         newSphere.smoothness = UnityEngine.Random.value;
         return newSphere;
     }

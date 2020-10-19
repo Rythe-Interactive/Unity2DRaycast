@@ -33,7 +33,7 @@ public class FlyCamera : MonoBehaviour
         {
             float depth = 0;
             depth = transform.position.z;
-            depth *= 40;
+            //   depth *= 40;
             Vector3 offset = new Vector3(0, 0, depth);
             transform.position += offset;
         }
@@ -104,9 +104,9 @@ public class FlyCamera : MonoBehaviour
         if (Input.GetKey(KeyCode.W))
         {
             // if (this.GetComponent<Camera>().orthographic)
-            p_Velocity += new Vector3(0, 1, 0);
+            //   p_Velocity += new Vector3(0, 1, 0);
             //    else
-            //     p_Velocity += new Vector3(0, 0, 1);
+            p_Velocity += new Vector3(0, 0, 1);
 
 
         }
@@ -115,7 +115,7 @@ public class FlyCamera : MonoBehaviour
             //  if (this.GetComponent<Camera>().orthographic)
             p_Velocity += new Vector3(0, -1, 0);
             //   else
-            //       p_Velocity += new Vector3(0, 0, -1);
+            p_Velocity += new Vector3(0, 0, -1);
         }
         if (Input.GetKey(KeyCode.A))
         {

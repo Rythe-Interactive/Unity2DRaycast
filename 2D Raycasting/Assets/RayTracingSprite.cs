@@ -5,6 +5,8 @@ using UnityEngine;
 [RequireComponent(typeof(SpriteRenderer))]
 public class RayTracingSprite : MonoBehaviour
 {
+    [SerializeField]
+    private Texture2D m_NormalMap;
     public enum TextureMode
     {
         TEX512,
@@ -38,7 +40,7 @@ public class RayTracingSprite : MonoBehaviour
             TexSize = TextureMode.TEX256;
             Dimensions = 256;
         }
-        if(pow >=5 && pow <= 8) 
+        if (pow >= 5 && pow <= 8)
         {
             TexSize = TextureMode.TEX512;
             Dimensions = 512;
@@ -76,6 +78,7 @@ public class RayTracingSprite : MonoBehaviour
         return sRT;
     }
     public Texture2D GetTexture() => m_tex;
+    public Texture2D GetNormal() => m_NormalMap;
 }
 public struct SpriteRT
 {

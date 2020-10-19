@@ -62,17 +62,14 @@ namespace UnityEngine.Rendering
             ClearBuffer();
 
             BeginBuffer();
+            DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
+            DrawUnsupportedShaders();
+
             //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
             if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
             {
-
-                //Draw stuff
-                DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
-                //only exectues if in editor
-                DrawUnsupportedShaders();
                 //Draw Gizmos, only executes if in editor
                 DrawGizmos();
-
             }
             //else run comput shader
             else
@@ -102,19 +99,31 @@ namespace UnityEngine.Rendering
 
             int width = m_cam.scaledPixelWidth;
             int height = m_cam.scaledPixelHeight;
+            //   RenderTexture depthBuffer = BuiltinRenderTextureType.Depth;
             //m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
+
+            // Texture2D tex2d = m_cam.
 
             if (m_camInfo.UseAA)
             {
-                for (int i = 0; i < 1; i++)
-                {
-                    m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
-                }
+                Debug.Log("executing");
+                //    m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture, m_AAMaterial);
+                //    m_AAMaterial.SetTexture("_MainTex", BuiltinRenderTextureType.Depth);
+                //   m_AAMaterial.mainTexture = BuiltinRenderTextureType.Depth;
+
+              //  var tempBuffer = BuiltinRenderTextureType.GBuffer2;
+                m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
+
+                //  m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
+
 
                 //blit to a converged render texture using the shader for integration
                 //blit converged RT to screen RT
                 m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
 
+
+                //RenderTexture r = RenderTexture.GetTemporary(master.ConvergedRT.width, master.ConvergedRT.height);
+              //  Graphics.Blit(master.ConvergedRT, r);
 
                 m_camInfo.SampleCount++;
             }
@@ -130,7 +139,7 @@ namespace UnityEngine.Rendering
             CameraClearFlags flags = m_cam.clearFlags;
             //Clear buffer based on camera flag
             m_buffer.ClearRenderTarget(
-                flags <= CameraClearFlags.Depth,
+                flags == CameraClearFlags.Depth,
                 flags == CameraClearFlags.Color,
                 flags == CameraClearFlags.Color ? m_cam.backgroundColor.linear : Color.clear);
         }
@@ -169,19 +178,9 @@ namespace UnityEngine.Rendering
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
 
 
-            m_context.DrawSkybox(m_cam);
+            //    m_context.DrawSkybox(m_cam);
 
             m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
-
-            ////Draw custom shaders
-            //for (int i = 1; i < CustomShaderTagIds.Length + 1; i++)
-            //{
-            ////    Debug.Log("custom shader pass" + i);
-            //    drawingsettings.SetShaderPassName(i, CustomShaderTagIds[i - 1]);
-            //}
-            //   m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
-
-            ////m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
 
 
             sortingSettings.criteria = SortingCriteria.CommonTransparent;
@@ -189,9 +188,6 @@ namespace UnityEngine.Rendering
             filteringSettings.renderQueueRange = RenderQueueRange.transparent;
 
             m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
-
-
-
         }
         private void DrawUnsupportedShaders()
         {

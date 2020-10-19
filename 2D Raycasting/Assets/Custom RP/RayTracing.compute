@@ -61,7 +61,9 @@ StructuredBuffer<Quad2D> _Sprites;
 Texture2DArray <float4> _SpriteTextures_512_512;
 Texture2DArray <float4> _SpriteTextures_256_256;
 Texture2DArray <float4> _SpriteTextures_128_128;
-
+Texture2DArray <float4> _SNormalTextures_512_512;
+Texture2DArray <float4> _SNormalTextures_256_256;
+Texture2DArray <float4> _SNormalTextures_128_128;
 struct RayHit
 {
 	float3 position;
@@ -250,7 +252,8 @@ void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
 }
 void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 {
-
+	
+	
 	//calculate point on the plane
 	float t = (quad.depth - ray.origin.z) * (1.0f / ray.direction.z);
 	//return if ray needs to travel negative direction or something has been hit before
@@ -272,6 +275,7 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 
 	float2 uv = float2(coords.x / Width, coords.y / Height);
 	float4 color = float4(0, 0, 0, 0);
+	float3 normal;
 	if (quad.TextureDimensions == 64)
 	{
 		// color = _SpriteTextures_256_256[uint3(uv.x * 64, uv.y * 64, quad.TextureIndex)];
@@ -279,34 +283,37 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 	else if (quad.TextureDimensions == 128)
 	{
 		color = _SpriteTextures_128_128[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)];
-
+		if (color.a == 0) return;
+		normal = _SNormalTextures_128_128[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
 	}
 	else if (quad.TextureDimensions == 256)
 	{
 		color = _SpriteTextures_256_256[uint3(uv.x * 256, uv.y * 256, quad.TextureIndex)];
-
+		if (color.a == 0) return;
+		normal = _SNormalTextures_256_256[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
 	}
 	else if (quad.TextureDimensions == 512)
 	{
 		color = _SpriteTextures_512_512[uint3(uv.x * 512, uv.y * 512, quad.TextureIndex)];
+		if (color.a == 0) return;
+		normal = _SNormalTextures_512_512[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
 	}
+	//invert normal if ray is comming from other side of quad
 
 
-	if (color.a == 0) return;
+	//if (color.a == 0) return;
 	hit.albedo = color.rgb;
 
-	//hit.albedo = _SpriteTextures_256_256[uint3(uv.x, uv.y, quad.TextureIndex)].xyz;
-//	hit.albedo = float3(uv, 0);
-	//.SampleLevel(sampler_SkyBoxTexture, uvSpaceCoordinates)).xyz;
-
-//collision has been found set values && return
+	//collision has been found set values && return
 	hit.position = poi;
-	float3 normal = float3(0, 0, -1);
+	normal = float3(0, 0, -1);
+	if (ray.origin.z > quad.depth) normal *= -1;
+
 	hit.distance = t;
 	hit.normal = normal;
 	//hit.albedo = float3(0, 0, 0);
-	hit.specular = float3(0.1f, 0.1f, 0.1f);
-	hit.emission = float3(0, 0, 0);
+	hit.specular = 0.05f;
+	hit.emission = 0.0f;
 	hit.smoothness = 0.0f;
 	return;
 }
@@ -502,7 +509,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 	{
 		//else hit with skybox, skybox does not reflect => energy=0
 		ray.energy = 0.0f;
-		return(1.0f, 0.1f, 0.1f);
+		return(0.1f, 0.005f, 0.005f);
 		// Sample the skybox and write it
 		float theta = acos(ray.direction.y) / -PI;
 		float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
