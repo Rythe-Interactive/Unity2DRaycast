@@ -168,14 +168,14 @@ public class RayCastMaster
         m_RayTracingShader.SetTexture(0, "_SkyBoxTexture", m_SkyBox);
         m_RayTracingShader.SetVector("_PixelOffset", new Vector2(Random.value, Random.value));
 
-        m_RayTracingShader.SetVector("_DirLight", m_dirLight.Light);
+        //        m_RayTracingShader.SetVector("_DirLight", m_dirLight.Light);
         m_RayTracingShader.SetVector("_SkyColor", new Vector3(m_BackgroundColor.r, m_BackgroundColor.g, m_BackgroundColor.b));
         m_RayTracingShader.SetFloat("_Seed", Random.value);
 
         SetComputeBuffer("_Spheres", m_SphereBuffer);
-        SetComputeBuffer("_MeshObjects", m_meshBuffer);
-        SetComputeBuffer("_Vertices", m_vertexBuffer);
-        SetComputeBuffer("_Indices", m_IndexBuffer);
+        //     SetComputeBuffer("_MeshObjects", m_meshBuffer);
+        //     SetComputeBuffer("_Vertices", m_vertexBuffer);
+        //   SetComputeBuffer("_Indices", m_IndexBuffer);
         SetComputeBuffer("_Sprites", m_SpriteBuffer);
     }
 
@@ -262,7 +262,7 @@ public class RayCastMaster
                 case RayTracingSprite.TextureMode.TEX128:
                     if (m_tex128List.Contains(tex))
                     {
-                      //  Debug.Log("countains!");
+                        //  Debug.Log("countains!");
                         index = m_tex128List.IndexOf(tex);
                     }
                     else
@@ -277,7 +277,7 @@ public class RayCastMaster
                 case RayTracingSprite.TextureMode.TEX256:
                     if (m_tex256List.Contains(tex))
                     {
-                     //   Debug.Log("countains!");
+                        //   Debug.Log("countains!");
                         index = m_tex256List.IndexOf(tex);
                     }
                     else
@@ -292,7 +292,7 @@ public class RayCastMaster
                 case RayTracingSprite.TextureMode.TEX512:
                     if (m_tex512List.Contains(tex))
                     {
-                     //   Debug.Log("countains!");
+                        //   Debug.Log("countains!");
                         index = m_tex512List.IndexOf(tex);
                     }
                     else
@@ -309,14 +309,14 @@ public class RayCastMaster
             sprites.Add(newSprite);
         }
         CreateComputeBuffer(ref m_SpriteBuffer, sprites, 28);
-   //     Debug.Log("128 count!" + m_tex128List.Count);
-   //     Debug.Log("256 count!" + m_tex256List.Count);
-   //     Debug.Log("512 count!" + m_tex512List.Count);
-   //     Debug.Log("texture 512 index0 length!" + m_tex2DArray512.GetPixels32(0).Length);
-   ////     Debug.Log("texture 256 length!" + m_tex2DArray256);
+        //     Debug.Log("128 count!" + m_tex128List.Count);
+        //     Debug.Log("256 count!" + m_tex256List.Count);
+        //     Debug.Log("512 count!" + m_tex512List.Count);
+        //     Debug.Log("texture 512 index0 length!" + m_tex2DArray512.GetPixels32(0).Length);
+        ////     Debug.Log("texture 256 length!" + m_tex2DArray256);
 
-   //     Debug.Log("256 count!" + m_tex256List.Count);
-   //     Debug.Log("512 count!" + m_tex512List.Count);
+        //     Debug.Log("256 count!" + m_tex256List.Count);
+        //     Debug.Log("512 count!" + m_tex512List.Count);
         m_tex2DArray512.Apply();
         m_tex2DArray256.Apply();
         m_tex2DArray128.Apply();

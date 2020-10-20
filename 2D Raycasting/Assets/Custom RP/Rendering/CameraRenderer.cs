@@ -62,12 +62,13 @@ namespace UnityEngine.Rendering
             ClearBuffer();
 
             BeginBuffer();
-            DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
-            DrawUnsupportedShaders();
+
 
             //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
             if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
             {
+                DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
+                DrawUnsupportedShaders();
                 //Draw Gizmos, only executes if in editor
                 DrawGizmos();
             }
@@ -85,7 +86,9 @@ namespace UnityEngine.Rendering
             //Create new material if null
             if (m_AAMaterial == null)
                 m_AAMaterial = new Material(Shader.Find("Hidden/AntiAliasing"));
+            m_AAMaterial.SetFloat("TextureHeight", Camera.main.scaledPixelHeight);
             m_AAMaterial.SetFloat("_Sample", m_camInfo.SampleCount);
+
 
         }
         private void ExecuteComputeShader(RayCastMaster master)
@@ -106,15 +109,18 @@ namespace UnityEngine.Rendering
 
             if (m_camInfo.UseAA)
             {
-                Debug.Log("executing");
+                // Debug.Log("executing");
                 //    m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture, m_AAMaterial);
                 //    m_AAMaterial.SetTexture("_MainTex", BuiltinRenderTextureType.Depth);
                 //   m_AAMaterial.mainTexture = BuiltinRenderTextureType.Depth;
 
-              //  var tempBuffer = BuiltinRenderTextureType.GBuffer2;
+                //  var tempBuffer = BuiltinRenderTextureType.GBuffer2;
+                //    m_buffer.Blit(BuiltinRenderTextureType.GBuffer2, master.ConvergedRT, m_AAMaterial);
+                //    for (int i = 0; i < 1; i++)
+                //    {
                 m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
 
-                //  m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
+                // }
 
 
                 //blit to a converged render texture using the shader for integration
@@ -123,7 +129,7 @@ namespace UnityEngine.Rendering
 
 
                 //RenderTexture r = RenderTexture.GetTemporary(master.ConvergedRT.width, master.ConvergedRT.height);
-              //  Graphics.Blit(master.ConvergedRT, r);
+                //  Graphics.Blit(master.ConvergedRT, r);
 
                 m_camInfo.SampleCount++;
             }

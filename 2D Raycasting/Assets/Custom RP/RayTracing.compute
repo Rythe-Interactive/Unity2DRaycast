@@ -7,17 +7,17 @@ Texture2D<float4> _SkyBoxTexture;
 SamplerState sampler_SkyBoxTexture;
 
 float2 _PixelOffset;
-float4 _DirLight;
+//float4 _DirLight;
 float3 _SkyColor;
 float _Seed;
 float2 _Pixel;
-
+float3 _DirectionalLight = float3(1, 0, 1);
 
 static const float3 FRONT_NORMAL = float3(0, 0, -1);
 static const float3 LEFT_NORMAL = float3(-1, 0, 0);
 static const float3 BOT_NORMAL = float3(0, -1, 0);
-
-
+static const float REFRACTION_SCALER = 0.8f;
+static const int SAMPLE_PER_PIXEL = 8;
 static const int MAX_BOUNCES = 8;
 static const float PI = 3.14159265f;
 static const float EPSILON = 0.0000001f;
@@ -73,6 +73,7 @@ struct RayHit
 	float3 specular;
 	float smoothness;
 	float3 emission;
+	float3 reflectionNormal;
 };
 struct MeshObject
 {
@@ -80,9 +81,9 @@ struct MeshObject
 	int indices_offset;
 	int indices_count;
 };
-StructuredBuffer<MeshObject> _MeshObjects;
-StructuredBuffer<float3> _Vertices;
-StructuredBuffer<int> _Indices;
+//StructuredBuffer<MeshObject> _MeshObjects;
+//StructuredBuffer<float3> _Vertices;
+//StructuredBuffer<int> _Indices;
 
 //returns random number
 float Rand()
@@ -100,6 +101,10 @@ float SmoothnessToAlpha(float s)
 float Energy(float3 Color)
 {
 	return (dot(Color, 1.0f / 3.0f));
+}
+float3 ClampRadiance(float3 radiance, float3 maxRadiance)
+{
+	return min(radiance, maxRadiance);
 }
 float3x3 GetTangentSpace(float3 normal)
 {
@@ -252,8 +257,8 @@ void IntersectAABB(Ray ray, inout RayHit hit, AABB box)
 }
 void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 {
-	
-	
+
+
 	//calculate point on the plane
 	float t = (quad.depth - ray.origin.z) * (1.0f / ray.direction.z);
 	//return if ray needs to travel negative direction or something has been hit before
@@ -275,7 +280,7 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 
 	float2 uv = float2(coords.x / Width, coords.y / Height);
 	float4 color = float4(0, 0, 0, 0);
-	float3 normal;
+	float3 reflectionNormal;
 	if (quad.TextureDimensions == 64)
 	{
 		// color = _SpriteTextures_256_256[uint3(uv.x * 64, uv.y * 64, quad.TextureIndex)];
@@ -284,37 +289,45 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 	{
 		color = _SpriteTextures_128_128[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)];
 		if (color.a == 0) return;
-		normal = _SNormalTextures_128_128[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
+		reflectionNormal = _SNormalTextures_128_128[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
 	}
 	else if (quad.TextureDimensions == 256)
 	{
 		color = _SpriteTextures_256_256[uint3(uv.x * 256, uv.y * 256, quad.TextureIndex)];
 		if (color.a == 0) return;
-		normal = _SNormalTextures_256_256[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
+		reflectionNormal = _SNormalTextures_256_256[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
 	}
 	else if (quad.TextureDimensions == 512)
 	{
 		color = _SpriteTextures_512_512[uint3(uv.x * 512, uv.y * 512, quad.TextureIndex)];
 		if (color.a == 0) return;
-		normal = _SNormalTextures_512_512[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
+		reflectionNormal = _SNormalTextures_512_512[uint3(uv.x * 128, uv.y * 128, quad.TextureIndex)].xyz;
 	}
+
 	//invert normal if ray is comming from other side of quad
+	float3 normal = float3(0, 0, -1);
+	if (ray.origin.z > quad.depth)
+	{
+		normal *= -1;
+		reflectionNormal *= -1;
+	}
 
-
-	//if (color.a == 0) return;
 	hit.albedo = color.rgb;
 
 	//collision has been found set values && return
 	hit.position = poi;
-	normal = float3(0, 0, -1);
-	if (ray.origin.z > quad.depth) normal *= -1;
+
 
 	hit.distance = t;
 	hit.normal = normal;
 	//hit.albedo = float3(0, 0, 0);
-	hit.specular = 0.05f;
+	hit.specular = 0.5f;
 	hit.emission = 0.0f;
-	hit.smoothness = 0.0f;
+	hit.smoothness = 0.5f;
+	hit.reflectionNormal = hit.normal;
+	/*float oldSmoothness = hit.smoothness;
+	smoothness = max(0.0, smoothness - oldSmoothness);
+	hit.smoothness -= smoothness * 0.75*/;
 	return;
 }
 
@@ -368,13 +381,14 @@ void IntersectSphere(Ray ray, inout RayHit hit, Sphere sphere)
 		hit.specular = sphere.specular;
 		hit.smoothness = sphere.smoothness;
 		hit.emission = sphere.emission;
+		hit.reflectionNormal = hit.normal;
 	}
 }
 
 
 void IntersectMeshObject(Ray ray, inout RayHit hit, MeshObject meshObj)
 {
-	uint offset = meshObj.indices_offset;
+	/*uint offset = meshObj.indices_offset;
 	uint count = offset + meshObj.indices_count;
 	for (uint i = offset; i < count; i += 3)
 	{
@@ -397,7 +411,7 @@ void IntersectMeshObject(Ray ray, inout RayHit hit, MeshObject meshObj)
 			}
 		}
 
-	}
+	}*/
 }
 void IntersectGroundPlane(Ray ray, inout RayHit hit)
 {
@@ -418,12 +432,7 @@ RayHit Trace(Ray ray)
 	//init variables
 	RayHit hit = CreateRay();
 	uint count, stride;
-	//trace triangles / meshes
-	_MeshObjects.GetDimensions(count, stride);
-	for (int i = 0; i < count; i++)
-	{
-		IntersectMeshObject(ray, hit, _MeshObjects[i]);
-	}
+
 
 
 	//trace sprites
@@ -432,29 +441,6 @@ RayHit Trace(Ray ray)
 	{
 		Intersect2DQuad(ray, hit, _Sprites[i]);
 	}
-
-
-
-	//intersect with ground plane
-	//IntersectGroundPlane(ray, hit);
-	//trace aabb
-	//for (uint i = 0; i < 16; i++)
-	//{
-	//	for (uint j = 0; j < 16; j++)
-	//	{
-	//		float offset = Rand();
-	//		for (uint q = 0; q < 4; q++)
-	//		{
-	//			AABB box;
-	//			box.posMin = float3(7.5f * i, 7.5f * q, (7.5f + offset) * j);
-	//			box.posMax = box.posMin + float3(5.0f, 5.0f, 5.0f);
-	//			box.posCenter = box.posMax - box.posMin;
-	//			box.albedo = float3(0.5f, 0.2f, 0.2f);
-	//			box.specular = float3(0.1f, 0.1f, 0.1f);
-	//			IntersectAABB(ray, hit, box);
-	//		}
-	//	}
-	//}
 
 
 
@@ -471,10 +457,11 @@ float3 Shade(inout Ray ray, RayHit hit)
 {
 	if (hit.distance < 1.#INF)
 	{
-		//hit.albedo = min(1.0f - hit.specular, hit.albedo);
-		//return hit.specular;
+		hit.albedo = min(1.0f - hit.specular, hit.albedo);
+
 		float specChance = Energy(hit.specular);
 		float diffChance = Energy(hit.albedo);
+
 		float sum = specChance + diffChance;
 
 		specChance /= sum;
@@ -482,35 +469,39 @@ float3 Shade(inout Ray ray, RayHit hit)
 
 		float roulette = Rand();
 
+
 		ray.origin = hit.position + hit.normal * 0.001f;
 
-		if (roulette > specChance)
+		if (roulette < specChance)
 		{
 			float alpha = SmoothnessToAlpha(hit.smoothness);
 			//spec reflection
 
-			ray.direction = SampleHemisphere(reflect(ray.direction, hit.normal), alpha);
-			//ray.direction = reflect(ray.direction, hit.normal);
+			ray.direction = SampleHemisphere(reflect(ray.direction, hit.reflectionNormal), alpha);
+		//	ray.direction = reflect(ray.direction, hit.normal);
 			float f = (alpha + 2) / (alpha + 1);
-			ray.energy *= (1.0f / specChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction, f);
+			ray.energy *= (1.0f / specChance) * 2 * hit.albedo * sdot(hit.reflectionNormal, ray.direction, f);
+			//	return float3(1, 0, 0);
 		}
 		else
 		{
-			//diffuse reflection
-			ray.direction = SampleHemisphere(hit.normal, 1.0f);
-			//ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
+			//	diffuse reflection
+			ray.direction = SampleHemisphere(hit.reflectionNormal, 1.0f);
+			//	ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
 			ray.energy *= (1.0f / diffChance) * hit.albedo;
+			//ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
 		}
 
 		return hit.emission;
-		return 0.0f;
 	}
 	else
 	{
 		//else hit with skybox, skybox does not reflect => energy=0
 		ray.energy = 0.0f;
-		return(0.1f, 0.005f, 0.005f);
-		// Sample the skybox and write it
+		float3 color = float3(0.02f, 0.02f, 0.1f);
+		return color;
+		//	return(0.5f, 0.3f, 1.0f);
+			// Sample the skybox and write it
 		float theta = acos(ray.direction.y) / -PI;
 		float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
 
@@ -528,25 +519,39 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 	uint width, height;
 	Result.GetDimensions(width, height);
 
-	float2 uv = float2((id.xy + _PixelOffset) / float2(width, height) * 2.0f - 1.0f);
-	Ray ray = CreateCameraRay(uv);
-	//Result[id.xy] = float4(ray.direction, 1);
 	_Pixel = id.xy;
-	/*RayHit hit = Trace(ray);
-	float3 result = Shade(ray, hit);*/
+	//	float2 uv = float2((id.xy + _PixelOffset) / float2(width, height) * 2.0f - 1.0f);
 
 	float3 result = float3(0, 0, 0);
-	for (int i = 0; i < MAX_BOUNCES; i++)
+	//loop over sample count
+	for (int SampleCount = 0; SampleCount < SAMPLE_PER_PIXEL; SampleCount++)
 	{
-		RayHit hit = Trace(ray);
-		result += ray.energy * Shade(ray, hit);
-
-
-		//	result += Shade(ray, hit);
-		if (!any(ray.energy))
-			break;
+		//create random offset
+		float xOffset = Rand();
+		float yOffset = Rand();
+		float2 offset = float2(xOffset, yOffset);
+		//generate Ray
+		float2 uv = float2((id.xy + offset) / float2(width, height) * 2.0f - 1.0f);
+		Ray ray = CreateCameraRay(uv);
+		//trace ray for amount of bounces
+		for (int i = 0; i < MAX_BOUNCES; i++)
+		{
+			RayHit hit = Trace(ray);
+			//add up traced lighting information
+			float3 tempResult = ray.energy * Shade(ray, hit);
+			result += tempResult;
+			//break loop if ray lost all its energy by reflection and absorption or if ray hit nothing(ray also lost all its energy)
+			if (!any(ray.energy))
+				break;
+		}
+		//clamp result to avoid fireflys
+		result = ClampRadiance(result, float3(1, 1, 1));
 	}
+	//average out the resoult based on sample count
+	result *= 1 / (float)SAMPLE_PER_PIXEL;
 
+
+	//return result
 	Result[id.xy] = float4(result, 1);
 
 }
