@@ -550,7 +550,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 	//average out the resoult based on sample count
 	result *= 1 / (float)SAMPLE_PER_PIXEL;
 
-	//result = ClampRadiance(result, float3(1, 1, 1));
+	result = ClampRadiance(result, float3(1.5f, 1.5f, 1.5f));
 
 	//return result
 	Result[id.xy] = float4(result, 1);
