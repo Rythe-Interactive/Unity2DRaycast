@@ -17,7 +17,7 @@ static const float3 FRONT_NORMAL = float3(0, 0, -1);
 static const float3 LEFT_NORMAL = float3(-1, 0, 0);
 static const float3 BOT_NORMAL = float3(0, -1, 0);
 static const float REFRACTION_SCALER = 0.8f;
-static const int SAMPLE_PER_PIXEL = 8;
+static const int SAMPLE_PER_PIXEL = 128;
 static const int MAX_BOUNCES = 8;
 static const float PI = 3.14159265f;
 static const float EPSILON = 0.0000001f;
@@ -306,11 +306,11 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 
 	//invert normal if ray is comming from other side of quad
 	float3 normal = float3(0, 0, -1);
-	if (ray.origin.z > quad.depth)
-	{
-		normal *= -1;
-		reflectionNormal *= -1;
-	}
+	//if (ray.origin.z < quad.depth)
+	//{
+	////	normal *= -1;
+	//	reflectionNormal *= -1;
+	//}
 
 	hit.albedo = color.rgb;
 
@@ -321,7 +321,7 @@ void Intersect2DQuad(Ray ray, inout RayHit hit, Quad2D quad)
 	hit.distance = t;
 	hit.normal = normal;
 	//hit.albedo = float3(0, 0, 0);
-	hit.specular = 0.5f;
+	hit.specular = 0.8f;
 	hit.emission = 0.0f;
 	hit.smoothness = 0.5f;
 	hit.reflectionNormal = hit.normal;
@@ -478,7 +478,7 @@ float3 Shade(inout Ray ray, RayHit hit)
 			//spec reflection
 
 			ray.direction = SampleHemisphere(reflect(ray.direction, hit.reflectionNormal), alpha);
-		//	ray.direction = reflect(ray.direction, hit.normal);
+			//	ray.direction = reflect(ray.direction, hit.normal);
 			float f = (alpha + 2) / (alpha + 1);
 			ray.energy *= (1.0f / specChance) * 2 * hit.albedo * sdot(hit.reflectionNormal, ray.direction, f);
 			//	return float3(1, 0, 0);
@@ -488,8 +488,8 @@ float3 Shade(inout Ray ray, RayHit hit)
 			//	diffuse reflection
 			ray.direction = SampleHemisphere(hit.reflectionNormal, 1.0f);
 			//	ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
-			ray.energy *= (1.0f / diffChance) * hit.albedo;
-			//ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
+		//	ray.energy *= (1.0f / diffChance) * hit.albedo;
+			ray.energy *= (1.0f / diffChance) * 2 * hit.albedo * sdot(hit.normal, ray.direction);
 		}
 
 		return hit.emission;
@@ -498,7 +498,8 @@ float3 Shade(inout Ray ray, RayHit hit)
 	{
 		//else hit with skybox, skybox does not reflect => energy=0
 		ray.energy = 0.0f;
-		float3 color = float3(0.02f, 0.02f, 0.1f);
+		float3 color = float3(0.1f, 0.1f, 0.8f);
+		color = float3(0, 0, 0);
 		return color;
 		//	return(0.5f, 0.3f, 1.0f);
 			// Sample the skybox and write it
@@ -545,11 +546,11 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 				break;
 		}
 		//clamp result to avoid fireflys
-		result = ClampRadiance(result, float3(1, 1, 1));
 	}
 	//average out the resoult based on sample count
 	result *= 1 / (float)SAMPLE_PER_PIXEL;
 
+	//result = ClampRadiance(result, float3(1, 1, 1));
 
 	//return result
 	Result[id.xy] = float4(result, 1);
