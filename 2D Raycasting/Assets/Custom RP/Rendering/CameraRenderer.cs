@@ -15,7 +15,7 @@ namespace UnityEngine.Rendering
         private CamerInfoComponent m_camInfo;
         //Ray tracing stuff
         private Material m_AAMaterial;
-
+        private Material m_Depthmat;
 
 
         //shaders to use
@@ -52,23 +52,25 @@ namespace UnityEngine.Rendering
             PrepareForSceneWindow();
             if (!Cull()) return;
             m_CullingResults = context.Cull(ref m_cullingParams);
+         //   DepthPass();
 
 
             //create command buffer && set name
             m_buffer = new CommandBuffer();
             m_buffer.name = m_cam.name + " Buffer";
+
             //Setup buffer
+            ClearBuffer(m_buffer);
 
-            ClearBuffer();
+            BeginBuffer(m_buffer);
 
-            BeginBuffer();
-
+            DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
+            DrawUnsupportedShaders();
 
             //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
             if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
             {
-                DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
-                DrawUnsupportedShaders();
+
                 //Draw Gizmos, only executes if in editor
                 DrawGizmos();
             }
@@ -78,7 +80,43 @@ namespace UnityEngine.Rendering
                 ExecuteComputeShader(info.RayCaster);
             }
             //Submit buffer
-            Submit();
+            submitBuffer(m_buffer);
+
+        }
+
+        public void DepthPass()
+        {
+            Debug.Log("depth pass!");
+            int kdepthBufferBits = 32;
+            string profilerTag = "DepthPass";
+            ShaderTagId shaderID = new ShaderTagId("DepthOnly");
+            FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
+            CommandBuffer DepthBuffer = new CommandBuffer();
+            DepthBuffer.name = m_cam.name + "Depth Buffer";
+            //execute
+            ClearBuffer(DepthBuffer);
+            BeginBuffer(DepthBuffer);
+            //m_context.ExecuteCommandBuffer(DepthBuffer);
+            //DepthBuffer.Clear();
+
+            SortingSettings sortingSettings = GetSortingSettings();
+            DrawingSettings drawingSettings = GetDrawingSettings(sortingSettings, "CustomRP/CustumDepth");
+            //   drawingSettings.perObjectData = PerObjectData.None;
+            //    m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
+            m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
+
+            sortingSettings.criteria = SortingCriteria.CommonTransparent;
+            drawingSettings.sortingSettings = sortingSettings;
+            filteringSettings.renderQueueRange = RenderQueueRange.transparent;
+
+            m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
+
+
+            submitBuffer(DepthBuffer);
+
+            //m_context.ExecuteCommandBuffer(DepthBuffer);
+            //CommandBufferPool.Release(DepthBuffer);
+
         }
         private void InitPostProcessing()
         {
@@ -86,10 +124,12 @@ namespace UnityEngine.Rendering
             //Create new material if null
             if (m_AAMaterial == null)
                 m_AAMaterial = new Material(Shader.Find("Hidden/AntiAliasing"));
+
             m_AAMaterial.SetFloat("TextureHeight", Camera.main.scaledPixelHeight);
             m_AAMaterial.SetFloat("_Sample", m_camInfo.SampleCount);
 
-
+            if (m_Depthmat == null)
+                m_Depthmat = new Material(Shader.Find("ImageEffects/DepthTest"));
         }
         private void ExecuteComputeShader(RayCastMaster master)
         {
@@ -119,13 +159,15 @@ namespace UnityEngine.Rendering
                 //    for (int i = 0; i < 1; i++)
                 //    {
                 m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
+                //      m_buffer.Blit(master.Render(), master.ConvergedRT, m_Depthmat);
 
                 // }
 
 
                 //blit to a converged render texture using the shader for integration
                 //blit converged RT to screen RT
-                m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
+                if (m_Depthmat == null) Debug.Log("material is null!");
+                else m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
 
 
                 //RenderTexture r = RenderTexture.GetTemporary(master.ConvergedRT.width, master.ConvergedRT.height);
@@ -138,48 +180,64 @@ namespace UnityEngine.Rendering
                 m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
             }
         }
-        private void ClearBuffer()
+        private void ClearBuffer(CommandBuffer buffer)
         {
             m_context.SetupCameraProperties(m_cam);
 
             CameraClearFlags flags = m_cam.clearFlags;
             //Clear buffer based on camera flag
-            m_buffer.ClearRenderTarget(
+            buffer.ClearRenderTarget(
                 flags == CameraClearFlags.Depth,
                 flags == CameraClearFlags.Color,
                 flags == CameraClearFlags.Color ? m_cam.backgroundColor.linear : Color.clear);
         }
-        private void BeginBuffer()
+        private void BeginBuffer(CommandBuffer buffer)
         {
             //begin && execute buffer
-            m_buffer.BeginSample(m_buffer.name);
-            ExecuteBuffer();
+            buffer.BeginSample(buffer.name);
+            ExecuteBuffer(buffer);
         }
-        private void ExecuteBuffer()
+        private void ExecuteBuffer(CommandBuffer buffer)
         {
-            m_context.ExecuteCommandBuffer(m_buffer);
-            m_buffer.Clear();
+            m_context.ExecuteCommandBuffer(buffer);
+            buffer.Clear();
         }
-        private void Submit()
+        private void submitBuffer(CommandBuffer buffer)
         {
-            m_buffer.EndSample(m_buffer.name);
-            ExecuteBuffer();
+            buffer.EndSample(buffer.name);
+            ExecuteBuffer(buffer);
             m_context.Submit();
         }
-        private void DrawVisibleGeometry(bool useDynamicBatching, bool useGPUInstancing)
+        private SortingSettings GetSortingSettings()
         {
-            //get sorting settings from camera
             SortingSettings sortingSettings = new SortingSettings(m_cam)
             {
                 criteria = SortingCriteria.CommonOpaque
             };
-            //configer draw settings with sorting settings and allowed shader
-            DrawingSettings drawingsettings = new DrawingSettings(unlitShaderTagId, sortingSettings)
+            return sortingSettings;
+        }
+        private DrawingSettings GetDrawingSettings(SortingSettings sortingSettings, string shaderTagName = "SRPDefaultUnlit")
+        {
+            DrawingSettings drawingsettings = new DrawingSettings(new ShaderTagId(shaderTagName), sortingSettings)
             {
-                enableDynamicBatching = useDynamicBatching,
-                enableInstancing = useGPUInstancing
+                enableDynamicBatching = false,
+                enableInstancing = false
             };
-            //      DrawingSettings drawingsettings = new DrawingSettings(diffuseSprite, sortingSettings);
+            return drawingsettings;
+        }
+        private void DrawVisibleGeometry(bool useDynamicBatching, bool useGPUInstancing)
+        {
+            //get sorting settings from camera
+            SortingSettings sortingSettings = GetSortingSettings();
+
+            //configer draw settings with sorting settings and allowed shader
+            DrawingSettings drawingsettings = GetDrawingSettings(sortingSettings);
+            //DrawingSettings drawingsettings = new DrawingSettings(unlitShaderTagId, sortingSettings)
+            //{
+            //    enableDynamicBatching = useDynamicBatching,
+            //    enableInstancing = useGPUInstancing
+            //};
+
             //specify that all render queues are allowed
             FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
 
@@ -187,7 +245,6 @@ namespace UnityEngine.Rendering
             //    m_context.DrawSkybox(m_cam);
 
             m_context.DrawRenderers(m_CullingResults, ref drawingsettings, ref filteringSettings);
-
 
             sortingSettings.criteria = SortingCriteria.CommonTransparent;
             drawingsettings.sortingSettings = sortingSettings;

@@ -67,7 +67,7 @@ Shader "Hidden/AntiAliasing"
 				{
 					float2 uv = i.uv;
 					float3 textureColor = float3(tex2D(_MainTex, uv).rgb);
-					const float radius = 1;
+					/*const float radius = 1;
 					float count = 0;
 					float2 sigmaVariance = float2(0, 0);
 					for (int y = -radius; y < radius; y++)
@@ -83,7 +83,7 @@ Shader "Hidden/AntiAliasing"
 						}
 					}
 					sigmaVariance /= count;
-					float variance = max(0.0, sigmaVariance.y - sigmaVariance.x * sigmaVariance.x);
+					float variance = max(0.0, sigmaVariance.y - sigmaVariance.x * sigmaVariance.x);*/
 					return float4(textureColor, 1.0 / (_Sample + 1.0f));
 					//	return float4 (tex2D(_MainTex, i.uv).rgb, 1.0f / (_Sample + 1.0f));
 					}
