@@ -1,8 +1,18 @@
 ﻿using UnityEditor;
+using System.Collections.Generic;
 namespace UnityEngine.Rendering
 {
     public class CameraRenderer
     {
+
+        private List<RenderTexture> m_previousTextures;
+
+
+        private PostProcessingDispatcher m_RTPostProcessing;
+        private RenderTexture m_DepthRT;
+        private RenderTexture m_NormalRT;
+        private RenderTexture m_PositionRT;
+        private ComputeShader m_cs;
         //command buffer and Camera
         private CommandBuffer m_buffer;
         private Camera m_cam;
@@ -17,14 +27,14 @@ namespace UnityEngine.Rendering
         private Material m_AAMaterial;
         private Material m_Depthmat;
 
-
+        private bool m_firstDraw = false;
         //shaders to use
         private static Material errorMaterial;
         private static ShaderTagId standarSpriteShader = new ShaderTagId("Sprites/Default");
         private static ShaderTagId diffuseSprite = new ShaderTagId("Sprites/Diffuse");
 
         private static ShaderTagId unlitShaderTagId = new ShaderTagId("SRPDefaultUnlit");
-
+        private Texture2D previousFrame;
         //custom shaders
 
         static ShaderTagId[] CustomShaderTagIds =
@@ -41,6 +51,38 @@ namespace UnityEngine.Rendering
         new ShaderTagId("VertexLMRGBM"),
         new ShaderTagId("VertexLM")
         };
+        public CameraRenderer()
+        {
+            Init();
+        }
+        private void Init()
+        {
+            Debug.Log("init RTS");
+            m_PositionRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+            //    m_PositionRT.filterMode = FilterMode.Bilinear;
+            //     m_PositionRT.wrapMode = TextureWrapMode.Clamp;
+
+            m_NormalRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+            m_NormalRT.filterMode = FilterMode.Bilinear;
+            m_NormalRT.wrapMode = TextureWrapMode.Clamp;
+
+            m_DepthRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.Depth);
+            //   m_DepthRT.filterMode = FilterMode.Bilinear;
+            //   m_DepthRT.wrapMode = TextureWrapMode.Clamp;
+
+            m_RTPostProcessing = new PostProcessingDispatcher();
+            m_previousTextures = new List<RenderTexture>();
+            //create 10 empty textures
+            for (int i = 0; i < 10; i++)
+            {
+                RenderTexture rt = new RenderTexture(0, 0, 0);
+                m_previousTextures.Add(rt);
+            }
+            m_firstDraw = true;
+            //  m_previousFrames = new Texture2DArray(Screen.width,Screen.height,);
+            // m_frame1 = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+            //   m_frame2 = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+        }
         public void Render(ScriptableRenderContext context, Camera camera, bool useDynmaicBatching, bool useGPUInstancing, CamerInfoComponent info)
         {
 
@@ -52,8 +94,6 @@ namespace UnityEngine.Rendering
             PrepareForSceneWindow();
             if (!Cull()) return;
             m_CullingResults = context.Cull(ref m_cullingParams);
-         //   DepthPass();
-
 
             //create command buffer && set name
             m_buffer = new CommandBuffer();
@@ -64,58 +104,53 @@ namespace UnityEngine.Rendering
 
             BeginBuffer(m_buffer);
 
-            DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
-            DrawUnsupportedShaders();
+
 
             //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
             if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
             {
-
+                DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
+                DrawUnsupportedShaders();
                 //Draw Gizmos, only executes if in editor
                 DrawGizmos();
             }
             //else run comput shader
             else
             {
+                ExecuteCustomPass(m_DepthRT, "DepthOnly");
+                ExecuteCustomPass(m_NormalRT, "NormalPass");
+                ExecuteCustomPass(m_PositionRT, "PositionPass");
                 ExecuteComputeShader(info.RayCaster);
+                //   DisplayRenderTexture(m_DepthRT);
             }
             //Submit buffer
             submitBuffer(m_buffer);
 
         }
 
-        public void DepthPass()
+
+        private void ExecuteCustomPass(RenderTexture targetRT, string passName)
         {
-            Debug.Log("depth pass!");
-            int kdepthBufferBits = 32;
-            string profilerTag = "DepthPass";
-            ShaderTagId shaderID = new ShaderTagId("DepthOnly");
-            FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
-            CommandBuffer DepthBuffer = new CommandBuffer();
-            DepthBuffer.name = m_cam.name + "Depth Buffer";
-            //execute
-            ClearBuffer(DepthBuffer);
-            BeginBuffer(DepthBuffer);
-            //m_context.ExecuteCommandBuffer(DepthBuffer);
-            //DepthBuffer.Clear();
-
+            //setup buffer
+            CommandBuffer buffer = new CommandBuffer { name = passName };
+            //set render target to the input Render texture, If render texture is null, the target will stay the camera
+            if (targetRT != null)
+            {
+                CoreUtils.SetRenderTarget(buffer, targetRT, RenderBufferLoadAction.DontCare, RenderBufferStoreAction.Store, ClearFlag.All);
+            }
+            //clear & begin buffer
+            ClearBuffer(buffer);
+            BeginBuffer(buffer);
+            //get rendering settings
             SortingSettings sortingSettings = GetSortingSettings();
-            DrawingSettings drawingSettings = GetDrawingSettings(sortingSettings, "CustomRP/CustumDepth");
-            //   drawingSettings.perObjectData = PerObjectData.None;
-            //    m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
+            DrawingSettings drawingSettings = GetDrawingSettings(sortingSettings, passName);
+            FilteringSettings filteringSettings = new FilteringSettings(RenderQueueRange.opaque);
+            //render
             m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
 
-            sortingSettings.criteria = SortingCriteria.CommonTransparent;
-            drawingSettings.sortingSettings = sortingSettings;
-            filteringSettings.renderQueueRange = RenderQueueRange.transparent;
+            //end Render pass 
+            submitBuffer(buffer);
 
-            m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
-
-
-            submitBuffer(DepthBuffer);
-
-            //m_context.ExecuteCommandBuffer(DepthBuffer);
-            //CommandBufferPool.Release(DepthBuffer);
 
         }
         private void InitPostProcessing()
@@ -128,8 +163,6 @@ namespace UnityEngine.Rendering
             m_AAMaterial.SetFloat("TextureHeight", Camera.main.scaledPixelHeight);
             m_AAMaterial.SetFloat("_Sample", m_camInfo.SampleCount);
 
-            if (m_Depthmat == null)
-                m_Depthmat = new Material(Shader.Find("ImageEffects/DepthTest"));
         }
         private void ExecuteComputeShader(RayCastMaster master)
         {
@@ -140,45 +173,34 @@ namespace UnityEngine.Rendering
             }
             InitPostProcessing();
 
-            int width = m_cam.scaledPixelWidth;
-            int height = m_cam.scaledPixelHeight;
-            //   RenderTexture depthBuffer = BuiltinRenderTextureType.Depth;
-            //m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
 
-            // Texture2D tex2d = m_cam.
-
-            if (m_camInfo.UseAA)
-            {
-                // Debug.Log("executing");
-                //    m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture, m_AAMaterial);
-                //    m_AAMaterial.SetTexture("_MainTex", BuiltinRenderTextureType.Depth);
-                //   m_AAMaterial.mainTexture = BuiltinRenderTextureType.Depth;
-
-                //  var tempBuffer = BuiltinRenderTextureType.GBuffer2;
-                //    m_buffer.Blit(BuiltinRenderTextureType.GBuffer2, master.ConvergedRT, m_AAMaterial);
-                //    for (int i = 0; i < 1; i++)
-                //    {
-                m_buffer.Blit(master.Render(), master.ConvergedRT, m_AAMaterial);
-                //      m_buffer.Blit(master.Render(), master.ConvergedRT, m_Depthmat);
-
-                // }
+            RenderTexture rt = master.Render();
 
 
-                //blit to a converged render texture using the shader for integration
-                //blit converged RT to screen RT
-                if (m_Depthmat == null) Debug.Log("material is null!");
-                else m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
+            m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_PositionRT, m_previousTextures);
+
+            m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT, m_AAMaterial);
+
+            //m_buffer.Blit(rt, master.ConvergedRT);
+            //  m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
+
+            m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
+            //m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);
+
+            m_previousTextures.Insert(0, master.ConvergedRT);
+
+            //Trimm last list element 
+            while (m_previousTextures.Count > 10)
+                m_previousTextures.RemoveAt(m_previousTextures.Count - 1);
 
 
-                //RenderTexture r = RenderTexture.GetTemporary(master.ConvergedRT.width, master.ConvergedRT.height);
-                //  Graphics.Blit(master.ConvergedRT, r);
+            m_camInfo.SampleCount++;
 
-                m_camInfo.SampleCount++;
-            }
-            else
-            {
-                m_buffer.Blit(master.Render(), BuiltinRenderTextureType.RenderTexture);
-            }
+        }
+        private void DisplayRenderTexture(RenderTexture rt)
+        {
+            if (rt == null) return;
+            m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);
         }
         private void ClearBuffer(CommandBuffer buffer)
         {
@@ -265,14 +287,6 @@ namespace UnityEngine.Rendering
             }
             m_context.DrawRenderers(m_CullingResults, ref drawingSettings, ref filteringSettings);
 #endif
-        }
-        //culls based on layer index
-        private bool Cull(int LayerCount)
-        {
-            m_cam.cullingMask = (1 << LayerMask.NameToLayer("2D" + LayerCount.ToString()));
-            if (m_cam.TryGetCullingParameters(out m_cullingParams)) return true;
-            return false;
-
         }
         private bool Cull()
         {

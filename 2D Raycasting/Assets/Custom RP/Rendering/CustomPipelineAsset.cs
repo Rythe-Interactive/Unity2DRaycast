@@ -71,7 +71,7 @@ namespace UnityEngine.Rendering
             //iterate cameras && call actual render pass for the camera
             foreach (Camera cam in cameras)
             {
-                CameraRenderer camR = new CameraRenderer();
+            //    CameraRenderer camR = new CameraRenderer();
                 //get info from camera
                 CamerInfoComponent info = cam.GetComponent<CamerInfoComponent>();
                 //Create info if null
@@ -81,7 +81,7 @@ namespace UnityEngine.Rendering
                     //info.Init(false, m_useCS, m_computShader, m_RayCastMaster);
                 }
 
-                camR.Render(context, cam, m_useDynamicBatching, m_GPUInstancing, info);
+                m_renderer.Render(context, cam, m_useDynamicBatching, m_GPUInstancing, info);
             }
 
             OnRenderFinished();

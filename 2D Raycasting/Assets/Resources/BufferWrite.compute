@@ -1,0 +1,18 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> Result;
+Texture2D<float4> _MainTex;
+SamplerState sampler_MainTex;
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    
+    float2 pixelID = id.xy;
+    float4 color = _MainTex.SampleLevel(sampler_MainTex, pixelID,0);
+    Result[id.xy] = color;
+
+}

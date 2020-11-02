@@ -11,17 +11,19 @@ public class RayCastMaster
     private Color m_BackgroundColor;
 
     private float m_seed = 0;
-
+    private bool m_RebuildCompletely = false;
     private uint m_currentSample = 0;
     private LightContainerComponent m_dirLight;
 
     public RenderTexture ConvergedRT;
 
-
+    private List<RayTracingObject> m_rtObjects = new List<RayTracingObject>();
     //Variables For Compute shader data
     private static List<RayTracingMesh> m_RayTracingObjects = new List<RayTracingMesh>();
     private static List<RayTracingSphere> m_RayTracingSpheres = new List<RayTracingSphere>();
 
+
+    private List<SpriteRT> m_spriteRts = new List<SpriteRT>();
     private static List<Sphere> m_spheres = new List<Sphere>();
     private static List<MeshObject> m_MeshObjects = new List<MeshObject>();
     private static List<Vector3> m_vertices = new List<Vector3>();
@@ -32,6 +34,8 @@ public class RayCastMaster
     private ComputeBuffer m_IndexBuffer;
     private ComputeBuffer m_SphereBuffer;
     private ComputeBuffer m_SpriteBuffer;
+    private ComputeBuffer m_rtObjectBuffer;
+
     private static bool MeshWasRemoved = false;
     private static bool SphereWasRemoved = false;
     private static bool SpriteWasRemoved = false;
@@ -159,8 +163,9 @@ public class RayCastMaster
             }
             if (rebuild) RebuildSprites();
         }
-
     }
+
+   
     private void SetShaderParams()
     {
         m_RayTracingShader.SetMatrix("_CameraToWorld", m_cam.cameraToWorldMatrix);
@@ -244,11 +249,11 @@ public class RayCastMaster
     }
     private void RebuildSprites()
     {
-        Debug.Log("rebuilding sprites!");
+
         SpriteWasRemoved = false;
         m_camInfo.transform.hasChanged = true;
 
-        List<SpriteRT> sprites = new List<SpriteRT>();
+        m_spriteRts = new List<SpriteRT>();
         foreach (RayTracingSprite sprite in m_Sprites)
         {
             if (sprite == null) continue;
@@ -306,21 +311,13 @@ public class RayCastMaster
             }
             SpriteRT newSprite = sprite.GenSprite();
             newSprite.TextureIndex = index;
-            sprites.Add(newSprite);
+            m_spriteRts.Add(newSprite);
         }
-        CreateComputeBuffer(ref m_SpriteBuffer, sprites, 28);
-        //     Debug.Log("128 count!" + m_tex128List.Count);
-        //     Debug.Log("256 count!" + m_tex256List.Count);
-        //     Debug.Log("512 count!" + m_tex512List.Count);
-        //     Debug.Log("texture 512 index0 length!" + m_tex2DArray512.GetPixels32(0).Length);
-        ////     Debug.Log("texture 256 length!" + m_tex2DArray256);
-
-        //     Debug.Log("256 count!" + m_tex256List.Count);
-        //     Debug.Log("512 count!" + m_tex512List.Count);
+         CreateComputeBuffer(ref m_SpriteBuffer, m_spriteRts, 28);
         m_tex2DArray512.Apply();
         m_tex2DArray256.Apply();
         m_tex2DArray128.Apply();
-
+        m_RebuildCompletely = true;
     }
     private void RebuildSpheres()
     {
@@ -334,7 +331,8 @@ public class RayCastMaster
             if (rtSphere != null)
                 m_spheres.Add(GenerateSphere.Generate(rtSphere.gameObject));
         }
-        CreateComputeBuffer(ref m_SphereBuffer, m_spheres, 56);
+          CreateComputeBuffer(ref m_SphereBuffer, m_spheres, 56);
+        m_RebuildCompletely = true;
     }
     private void RebuildMeshes()
     {
@@ -372,8 +370,6 @@ public class RayCastMaster
     }
     private static void CreateComputeBuffer<T>(ref ComputeBuffer buffer, List<T> data, int stride) where T : struct
     {
-        Debug.Log("creating buffer");
-
         if (buffer != null)
         {
             if (data.Count == 0 || buffer.count != data.Count || buffer.stride != stride)

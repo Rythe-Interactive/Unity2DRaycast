@@ -1,0 +1,177 @@
+﻿#pragma kernel CSMain
+
+RWTexture2D<float4> Result;
+Texture2D<float4> _MainTex;
+SamplerState sampler_MainTex;
+
+
+Texture2D<float4> _DepthTex;
+SamplerState sampler_DepthTex;
+
+//Texture2D<float4> _NormalTex;
+//SamplerState sampler_NormalTex;
+Texture2D<float4> _PosTex;
+SamplerState sampler_PosTex;
+
+Texture2D<float4> _AlbedoTex;
+SamplerState sampler_AlbedoTex;
+
+//Texture2D<float4> _Frame1;
+//SamplerState sampler_Frame1;
+
+//Texture2D<float4> _Frame2;
+//SamplerState sampler_Frame2;
+
+static const float farPlane = 1000.0f;
+
+static const uint stepScale = 1;
+static const float colorSigmaScale = 2.0;
+
+static const float colorSigma = 0.125;
+static const float normalSigma = 0.125;
+static const float posSigma = 0.125;
+
+
+
+Texture2D<float4> _frameHistory0;
+SamplerState sampler_frameHistory0;
+
+Texture2D<float4> _frameHistory1;
+SamplerState sampler_frameHistory1;
+
+Texture2D<float4> _frameHistory2;
+SamplerState sampler_frameHistory2;
+
+Texture2D<float4> _frameHistory3;
+SamplerState sampler_frameHistory3;
+
+Texture2D<float4> _frameHistory4;
+SamplerState sampler_frameHistory4;
+
+Texture2D<float4> _frameHistory5;
+SamplerState sampler_frameHistory5;
+
+Texture2D<float4> _frameHistory6;
+SamplerState sampler_frameHistory6;
+
+Texture2D<float4> _frameHistory7;
+SamplerState sampler_frameHistory7;
+
+Texture2D<float4> _frameHistory8;
+SamplerState sampler_frameHistory8;
+
+Texture2D<float4> _frameHistory9;
+SamplerState sampler_frameHistory9;
+
+//struct FrameHistoryContainer
+//{
+//    Texture2D<float4> _frame;
+//};
+//StructuredBuffer<FrameHistoryContainer> _FrameHistory;
+
+static const float2 offset[25] =
+{
+    
+    float2(-2, -2), float2(-1, -2), float2(0, -2), float2(1, -2), float2(2, -2),
+
+    float2(-2, -1), float2(-1, -1), float2(0, -2), float2(1, -1), float2(2, -1),
+
+    float2(-2, 0), float2(-1, 0), float2(0, 0), float2(1, 0), float2(2, 0),
+
+    float2(-2, 1), float2(-1, 1), float2(0, 1), float2(1, 1), float2(2, 1),
+
+    float2(-2, 2), float2(-1, 2), float2(0, 2), float2(1, 2), float2(2, 2)
+};
+ // [1/16, 1/4, 3/8, 1/4, 1/16]
+
+static const float blurKernel[25] =
+{
+    1.0f / 256.0f, 1.0f / 64.0f, 3.0f / 128.0f, 1.0f / 64.0f, 1.0f / 256.0f,
+
+    1.0f / 64.0f, 1.0f / 16.0f, 3.0f / 32.0f, 1.0f / 16.0f, 1.0f / 64.0f,
+
+    3.0f / 128.0f, 3.0f / 32.0f, 9.0f / 64.0f, 3.0f / 32.0f, 3.0f / 128.0f,
+
+    1.0f / 64.0f, 1.0f / 16.0f, 3.0f / 32.0f, 1.0f / 16.0f, 1.0f / 64.0f,
+
+    1.0f / 256.0f, 1.0f / 64.0f, 3.0f / 128.0f, 1.0f / 64.0f, 1.0f / 256.0f
+};
+
+[numthreads(8, 8, 1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    uint width, height;
+    Result.GetDimensions(width, height);
+     //get uv
+    float2 Pixel = id.xy;
+    float2 uv = Pixel / float2(width, height);
+    
+    float4 color = _MainTex.SampleLevel(sampler_MainTex, uv, 0);
+
+    // if depth is 0 we are checking background, do not blur just return color
+    float depth = _DepthTex.SampleLevel(sampler_DepthTex, uv, 0).r;
+  
+    //init sum, weight & step width
+    float2 step = float2(1.0f / width, 1.0f / height);
+    
+    float4 sum = float4(0, 0, 0, 0);
+    float weightSum = 0.0f;
+
+
+    //sample center normal && pos
+   // float4 normal = _NormalTex.SampleLevel(sampler_NormalTex, uv, 0);
+    float4 pos = _PosTex.SampleLevel(sampler_PosTex, uv, 0);
+    
+    //iterate 5x5 blur kernel
+    for (uint i = 0; i < 25; i++)
+    {
+        //get offset uv coordinates
+        float2 currentUV = uv + offset[i] * step * stepScale;
+        //get new depth && check if background => skip background pixels
+        float currentDetph = _DepthTex.SampleLevel(sampler_DepthTex, currentUV, 0).r;
+        
+        float deltaDepth = depth - currentDetph;
+        //if (deltaDepth != 0)
+        //    continue;
+        
+        float distDepth = dot(deltaDepth, deltaDepth);
+        distDepth *= farPlane;
+        float w_depth = min(exp(-distDepth / (colorSigma * colorSigmaScale)), 1.0f);
+      
+        ////calculate color difference 
+        float4 tempColor = _MainTex.SampleLevel(sampler_MainTex, currentUV, 0);
+        float4 deltaC = color - tempColor;
+        float dist2 = dot(deltaC, deltaC);
+        float w_rt = min(exp(-dist2 / (colorSigma * colorSigmaScale)), 1.0f);
+        
+        //get delta of position, 
+        //float3 tempPos = _PosTex.SampleLevel(sampler_PosTex, currentUV, 0).rgb;
+        //float3 deltaPos = pos.rgb - tempPos;
+        //dist2 = dot(deltaPos, deltaPos);
+        //float w_pos = min(exp(-dist2 / (normalSigma)), 1.0f);
+       
+      
+        sum += tempColor * w_rt * w_depth;
+        weightSum += w_rt * blurKernel[i] * w_depth;
+        
+        
+        //sum += tempColor * w_rt * w_depth * w_pos;
+        //weightSum += w_rt * blurKernel[i] * w_depth * w_pos;
+
+    }
+    sum = sum / weightSum;
+    sum *= 0.8f;
+    sum += _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0) * 0.02f;
+    sum += _frameHistory1.SampleLevel(sampler_frameHistory1, uv, 0) * 0.02f;
+    sum += _frameHistory2.SampleLevel(sampler_frameHistory2, uv, 0) * 0.02f;
+    sum += _frameHistory3.SampleLevel(sampler_frameHistory3, uv, 0) * 0.02f;
+    sum += _frameHistory4.SampleLevel(sampler_frameHistory4, uv, 0) * 0.02f;
+    sum += _frameHistory5.SampleLevel(sampler_frameHistory5, uv, 0) * 0.02f;
+    sum += _frameHistory6.SampleLevel(sampler_frameHistory6, uv, 0) * 0.02f;
+    sum += _frameHistory7.SampleLevel(sampler_frameHistory7, uv, 0) * 0.02f;
+    sum += _frameHistory8.SampleLevel(sampler_frameHistory8, uv, 0) * 0.02f;
+    sum += _frameHistory9.SampleLevel(sampler_frameHistory9, uv, 0) * 0.02f;
+
+  
+    Result[id.xy] = float4(sum.rgb, 1);
+}

@@ -18,7 +18,7 @@ public class RayTracingMaterial : MonoBehaviour
     }
     private void UpdateStats()
     {
-        sphere.radius = this.transform.localScale.x * 0.5f;
+        sphere.radius = this.transform.lossyScale.x * 0.5f;
         sphere.position = this.transform.position;
         Vector3 c = new Vector3(Albedo.r, Albedo.g, Albedo.b);
         sphere.albedo = c;
