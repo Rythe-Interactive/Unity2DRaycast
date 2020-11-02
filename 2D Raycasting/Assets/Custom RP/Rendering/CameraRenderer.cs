@@ -9,6 +9,7 @@ namespace UnityEngine.Rendering
 
 
         private PostProcessingDispatcher m_RTPostProcessing;
+        private RenderTexture m_albedo;
         private RenderTexture m_DepthRT;
         private RenderTexture m_NormalRT;
         private RenderTexture m_PositionRT;
@@ -67,6 +68,8 @@ namespace UnityEngine.Rendering
             m_NormalRT.wrapMode = TextureWrapMode.Clamp;
 
             m_DepthRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.Depth);
+            m_albedo = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+
             //   m_DepthRT.filterMode = FilterMode.Bilinear;
             //   m_DepthRT.wrapMode = TextureWrapMode.Clamp;
 
@@ -120,6 +123,7 @@ namespace UnityEngine.Rendering
                 ExecuteCustomPass(m_DepthRT, "DepthOnly");
                 ExecuteCustomPass(m_NormalRT, "NormalPass");
                 ExecuteCustomPass(m_PositionRT, "PositionPass");
+                ExecuteCustomPass(m_albedo, "SRPDefaultUnlit");
                 ExecuteComputeShader(info.RayCaster);
                 //   DisplayRenderTexture(m_DepthRT);
             }
@@ -177,12 +181,13 @@ namespace UnityEngine.Rendering
             RenderTexture rt = master.Render();
 
 
-            m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_PositionRT, m_previousTextures);
+            m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_PositionRT, m_previousTextures, m_albedo);
 
             m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT, m_AAMaterial);
+            //m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT);
 
-            //m_buffer.Blit(rt, master.ConvergedRT);
-            //  m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
+            //     m_buffer.Blit(rt, master.ConvergedRT);
+            // m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
 
             m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
             //m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);

@@ -5,6 +5,7 @@ namespace UnityEngine.Rendering
 {
     public class PostProcessingDispatcher : ComputeDispatcher
     {
+        private RenderTexture m_albedoTex;
         private RenderTexture m_RTXrt;
         private RenderTexture m_NormalRT;
         private RenderTexture m_DetphRT;
@@ -38,6 +39,8 @@ namespace UnityEngine.Rendering
             m_CS.SetTexture(0, "_DepthTex", m_DetphRT);
             //   m_CS.SetTexture(0, "_NormalTex", m_NormalRT);
             m_CS.SetTexture(0, "_PosTex", m_PosRT);
+            m_CS.SetTexture(0, "_AlbedoTex", m_albedoTex);
+
             //m_CS.SetTexture(0, "_Frame1", m_frame1);
             //m_CS.SetTexture(0, "_Frame2", m_frame2);
 
@@ -48,13 +51,14 @@ namespace UnityEngine.Rendering
             m_threadGroupsX = Mathf.CeilToInt(Screen.width / 8.0f);
             m_threadGroupsY = Mathf.CeilToInt(Screen.height / 8.0f);
         }
-        public void SetRenderTextures(RenderTexture rtxRT, RenderTexture depthRT, RenderTexture position, List<RenderTexture> newTexArray)
+        public void SetRenderTextures(RenderTexture rtxRT, RenderTexture depthRT, RenderTexture position, List<RenderTexture> newTexArray, RenderTexture albedo)
         {
             m_RTXrt = rtxRT;
             //  m_NormalRT = normalRT;
             m_DetphRT = depthRT;
             m_PosRT = position;
             m_previosTextures = newTexArray;
+            m_albedoTex = albedo;
         }
     }
 

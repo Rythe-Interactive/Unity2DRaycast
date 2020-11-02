@@ -11,13 +11,9 @@ float2 _PixelOffset;
 float3 _SkyColor;
 float _Seed;
 float2 _Pixel;
-float3 _DirectionalLight = float3(1, 0, 1);
 
-static const float3 FRONT_NORMAL = float3(0, 0, -1);
-static const float3 LEFT_NORMAL = float3(-1, 0, 0);
-static const float3 BOT_NORMAL = float3(0, -1, 0);
-static const float REFRACTION_SCALER = 0.8f;
-static const int SAMPLE_PER_PIXEL = 8;
+
+static const int SAMPLE_PER_PIXEL = 4;
 static const int MAX_BOUNCES = 6;
 static const float PI = 3.14159265f;
 static const float EPSILON = 0.0000001f;
@@ -558,7 +554,7 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 	//average out the resoult based on sample count
     result *= 1 / (float) SAMPLE_PER_PIXEL;
 
- //   result = ClampRadiance(result, float3(1.0f, 1.0f, 1.0f));
+    result = ClampRadiance(result, float3(1.0f, 1.0f, 1.0f));
 
 	//return result
     Result[id.xy] = float4(result, 1);

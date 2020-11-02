@@ -25,7 +25,7 @@ SamplerState sampler_AlbedoTex;
 static const float farPlane = 1000.0f;
 
 static const uint stepScale = 1;
-static const float colorSigmaScale = 2.0;
+static const float colorSigmaScale = 1.0;
 
 static const float colorSigma = 0.125;
 static const float normalSigma = 0.125;
@@ -96,6 +96,10 @@ static const float blurKernel[25] =
 
     1.0f / 256.0f, 1.0f / 64.0f, 3.0f / 128.0f, 1.0f / 64.0f, 1.0f / 256.0f
 };
+float Energy(float3 Color)
+{
+    return (dot(Color, 1.0f / 3.0f));
+}
 
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
@@ -149,29 +153,49 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         //float3 deltaPos = pos.rgb - tempPos;
         //dist2 = dot(deltaPos, deltaPos);
         //float w_pos = min(exp(-dist2 / (normalSigma)), 1.0f);
-       
+        float tempLuminance = Energy(tempColor.rgb);
+        float3 rasterC = _AlbedoTex.SampleLevel(sampler_AlbedoTex, currentUV, 0).rgb;
+        float3 deltaRaster = rasterC - tempColor.rgb;
+        dist2 = dot(deltaC, deltaC);
+        float w_L = min(exp(-dist2 / (colorSigma * colorSigmaScale)), 1.0f);
       
-        sum += tempColor * w_rt * w_depth;
-        weightSum += w_rt * blurKernel[i] * w_depth;
+        sum += tempColor * w_rt * w_depth * w_L;
+        weightSum += w_rt * blurKernel[i] * w_depth * w_L;
         
         
-        //sum += tempColor * w_rt * w_depth * w_pos;
-        //weightSum += w_rt * blurKernel[i] * w_depth * w_pos;
+        //sum += tempColor * w_rt * w_depth;
+        //weightSum += w_rt * blurKernel[i] * w_depth;
 
     }
-    sum = sum / weightSum;
-    sum *= 0.8f;
-    sum += _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0) * 0.02f;
-    sum += _frameHistory1.SampleLevel(sampler_frameHistory1, uv, 0) * 0.02f;
-    sum += _frameHistory2.SampleLevel(sampler_frameHistory2, uv, 0) * 0.02f;
-    sum += _frameHistory3.SampleLevel(sampler_frameHistory3, uv, 0) * 0.02f;
-    sum += _frameHistory4.SampleLevel(sampler_frameHistory4, uv, 0) * 0.02f;
-    sum += _frameHistory5.SampleLevel(sampler_frameHistory5, uv, 0) * 0.02f;
-    sum += _frameHistory6.SampleLevel(sampler_frameHistory6, uv, 0) * 0.02f;
-    sum += _frameHistory7.SampleLevel(sampler_frameHistory7, uv, 0) * 0.02f;
-    sum += _frameHistory8.SampleLevel(sampler_frameHistory8, uv, 0) * 0.02f;
-    sum += _frameHistory9.SampleLevel(sampler_frameHistory9, uv, 0) * 0.02f;
+    float4 rasterColor = _AlbedoTex.SampleLevel(sampler_AlbedoTex, uv, 0);
+    
+    //float luminance = Energy(rasterColor.rgb);
+    float luminance = Energy(_frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0).rgb);
+    luminance = min(0.0f, luminance);
+    luminance = max(luminance, 1.0f);
+    //rameHistory0.SampleLevel(sampler_frameHistory0, uv, 0).rgb);
+    float4 sumPrevious = float4(0, 0, 0, 0);
+    sumPrevious += _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0) * .9;
+    sumPrevious += _frameHistory1.SampleLevel(sampler_frameHistory1, uv, 0) * .8;
+    sumPrevious += _frameHistory2.SampleLevel(sampler_frameHistory2, uv, 0) * .7;
+    sumPrevious += _frameHistory3.SampleLevel(sampler_frameHistory3, uv, 0) * .6;
+    sumPrevious += _frameHistory4.SampleLevel(sampler_frameHistory4, uv, 0) * .5;
+    sumPrevious += _frameHistory5.SampleLevel(sampler_frameHistory5, uv, 0) * .4;
+    sumPrevious += _frameHistory6.SampleLevel(sampler_frameHistory6, uv, 0) * .3;
+    sumPrevious += _frameHistory7.SampleLevel(sampler_frameHistory7, uv, 0) * .2;
+    sumPrevious += _frameHistory8.SampleLevel(sampler_frameHistory8, uv, 0) * .1;
+    //sumPrevious += _frameHistory9.SampleLevel(sampler_frameHistory9, uv, 0);
+   // sumPrevious += rasterColor;
+    sumPrevious /= 4.5f;
 
-  
+    sum = sum / weightSum;
+    
+  //  sum = lerp(sum, _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0), (luminance - 1));
+    float a = 0.2f;
+    sum = lerp(sum, rasterColor, a);
+    //sum *= 0.8f;
+    //sum += rasterColor * 0.2f;
+
+   // sum = color * 0.8f;
     Result[id.xy] = float4(sum.rgb, 1);
 }
