@@ -11,7 +11,6 @@
 #define UNITY_MATRIX_VP unity_MatrixVP
 #define UNITY_MATRIX_P glstate_matrix_projection
 
-
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
 
 #endif

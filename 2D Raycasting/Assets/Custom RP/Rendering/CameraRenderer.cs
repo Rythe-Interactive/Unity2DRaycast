@@ -7,7 +7,7 @@ namespace UnityEngine.Rendering
 
         private List<RenderTexture> m_previousTextures;
 
-
+        private RenderTexture m_VelocityBuffer;
         private PostProcessingDispatcher m_RTPostProcessing;
         private RenderTexture m_albedo;
         private RenderTexture m_DepthRT;
@@ -69,7 +69,7 @@ namespace UnityEngine.Rendering
 
             m_DepthRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.Depth);
             m_albedo = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
-
+            m_VelocityBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
             //   m_DepthRT.filterMode = FilterMode.Bilinear;
             //   m_DepthRT.wrapMode = TextureWrapMode.Clamp;
 
@@ -124,8 +124,10 @@ namespace UnityEngine.Rendering
                 ExecuteCustomPass(m_NormalRT, "NormalPass");
                 ExecuteCustomPass(m_PositionRT, "PositionPass");
                 ExecuteCustomPass(m_albedo, "SRPDefaultUnlit");
+                //   ExecuteCustomPass(m_VelocityBuffer, "VelocityPass");
+
                 ExecuteComputeShader(info.RayCaster);
-                //   DisplayRenderTexture(m_DepthRT);
+                // DisplayRenderTexture(m_VelocityBuffer);
             }
             //Submit buffer
             submitBuffer(m_buffer);
@@ -183,11 +185,11 @@ namespace UnityEngine.Rendering
 
             m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_PositionRT, m_previousTextures, m_albedo);
 
-            m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT, m_AAMaterial);
+               m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT, m_AAMaterial);
             //m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT);
 
             //     m_buffer.Blit(rt, master.ConvergedRT);
-            // m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
+            //m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
 
             m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
             //m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);

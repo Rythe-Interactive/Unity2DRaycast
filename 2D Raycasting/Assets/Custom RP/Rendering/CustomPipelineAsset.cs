@@ -51,6 +51,8 @@ namespace UnityEngine.Rendering
             foreach (Camera cam in Camera.allCameras)
             {
                 cam.depthTextureMode = DepthTextureMode.Depth;
+                cam.depthTextureMode = DepthTextureMode.DepthNormals;
+                cam.depthTextureMode = DepthTextureMode.MotionVectors;
                 CamerInfoComponent info = cam.GetComponent<CamerInfoComponent>();
                 //Create info if null
                 if (info == null)
@@ -71,7 +73,7 @@ namespace UnityEngine.Rendering
             //iterate cameras && call actual render pass for the camera
             foreach (Camera cam in cameras)
             {
-            //    CameraRenderer camR = new CameraRenderer();
+                //    CameraRenderer camR = new CameraRenderer();
                 //get info from camera
                 CamerInfoComponent info = cam.GetComponent<CamerInfoComponent>();
                 //Create info if null

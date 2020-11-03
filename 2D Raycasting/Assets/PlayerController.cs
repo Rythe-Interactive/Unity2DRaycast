@@ -36,27 +36,29 @@ public class PlayerController : MonoBehaviour
 
             translation += new Vector2(moveSpeed * Time.deltaTime * Input.GetAxis("Horizontal"), 0);
         }
-        m_rb.velocity += translation;
-        if (m_rb.velocity.y > maxJumpHeightVeloxity) m_rb.velocity = new Vector2(m_rb.velocity.x, maxJumpHeightVeloxity);
-        if (m_rb.velocity.x > maxMoveSpeed) m_rb.velocity = new Vector2(maxMoveSpeed, m_rb.velocity.y);
-        //   if (m_rb.velocity.magnitude < 0.01f) transform.hasChanged = false;
-        //m_rb.velocity = m_rb.velocity *= 0.5f;
-        //   if (m_rb.velocity.magnitude < 0.05f) m_rb.velocity = Vector2.zero;
 
-        // transform.position += new Vector3(translation.x, translation.y, 0);
-        if (Input.GetKey("Space"))
-        {
-            m_rb.velocity = Vector2.zero;
-            //m_rb.inertia = Vector2.zero;
-            m_rb.isKinematic = true;
-            grounded = true;
-            transform.hasChanged = false;
-        }
-        if (Input.GetKeyUp("Space"))
-        {
-            m_rb.isKinematic = false;
+        transform.position = transform.position + new Vector3(translation.x, translation.y, 0);
+        //m_rb.velocity += translation;
+        //if (m_rb.velocity.y > maxJumpHeightVeloxity) m_rb.velocity = new Vector2(m_rb.velocity.x, maxJumpHeightVeloxity);
+        //if (m_rb.velocity.x > maxMoveSpeed) m_rb.velocity = new Vector2(maxMoveSpeed, m_rb.velocity.y);
+        ////   if (m_rb.velocity.magnitude < 0.01f) transform.hasChanged = false;
+        ////m_rb.velocity = m_rb.velocity *= 0.5f;
+        ////   if (m_rb.velocity.magnitude < 0.05f) m_rb.velocity = Vector2.zero;
 
-        }
+        //// transform.position += new Vector3(translation.x, translation.y, 0);
+        //if (Input.GetKey("Space"))
+        //{
+        //    m_rb.velocity = Vector2.zero;
+        //    //m_rb.inertia = Vector2.zero;
+        //    m_rb.isKinematic = true;
+        //    grounded = true;
+        //    transform.hasChanged = false;
+        //}
+        //if (Input.GetKeyUp("Space"))
+        //{
+        //    m_rb.isKinematic = false;
+
+        //}
     }
     private void OnCollisionEnter2D(Collision2D collision)
     {

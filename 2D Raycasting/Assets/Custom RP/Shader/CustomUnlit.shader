@@ -78,6 +78,20 @@
 	#include "WorldPosPass.hlsl"
 			ENDHLSL
 			}
+
+		Pass
+			{
+			Tags{"LightMode" = "VelocityPass"}
+			ZWrite On
+
+			HLSLPROGRAM
+	#pragma target 3.5
+
+	#pragma vertex VelocityPassVertex
+	#pragma fragment VelocityPassFragment
+	#include "VelocityPass.hlsl"
+			ENDHLSL
+			}
 		}
 
 }

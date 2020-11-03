@@ -21,11 +21,12 @@ SamplerState sampler_AlbedoTex;
 
 //Texture2D<float4> _Frame2;
 //SamplerState sampler_Frame2;
-
+//do not increase past 6 
+static const int passCount = 6;
 static const float farPlane = 1000.0f;
 
-static const uint stepScale = 1;
-static const float colorSigmaScale = 1.0;
+static uint stepScale = 1;
+static float colorSigmaScale = 1.0;
 
 static const float colorSigma = 0.125;
 static const float normalSigma = 0.125;
@@ -68,7 +69,22 @@ SamplerState sampler_frameHistory9;
 //    Texture2D<float4> _frame;
 //};
 //StructuredBuffer<FrameHistoryContainer> _FrameHistory;
+static const float2 offset3x3[9] =
+{
+    float2(-1, -1), float2(0, -1), float2(1, -1),
 
+    float2(-1, 0), float2(0, 0), float2(1, 0),
+
+    float2(-1, 1), float2(0, 1), float2(1, 1)
+};
+static const float blurKernerl3x3[9] =
+{
+    float(0.0625f), float(0.125f), float(0.0625f),
+    
+    float(0.125f), float(0.25f), float(0.125f),
+    
+    float(0.0625f), float(0.125f), float(0.0625f),
+};
 static const float2 offset[25] =
 {
     
@@ -100,6 +116,39 @@ float Energy(float3 Color)
 {
     return (dot(Color, 1.0f / 3.0f));
 }
+float GrayScale(float3 color)
+{
+    return float(color.r * 0.299f + color.g * 0.587f + color.b * 0.114f);
+}
+
+
+float Variance(float2 uv)
+{
+    const float radius = 2; //5x5 kernel
+    float2 sigmaVariancePair = float2(0.0, 0.0);
+    float sampCount = 0.0;
+    for (int y = -radius; y <= radius; ++y)
+    {
+        for (int x = -radius; x <= radius; ++x)
+        {
+        //  Sample current point data with current uv
+            float2 p = float2(uv.x + x, uv.y + y);
+            float4 curColor = _MainTex.SampleLevel(sampler_MainTex, p, 0);
+
+            //  Determine the average brightness of this sample
+           //  Using International Telecommunications Union's ITU BT.601 encoding params
+            float samp = GrayScale(curColor.rgb);
+            float sampSquared = samp * samp;
+            sigmaVariancePair += float2(samp, sampSquared);
+
+            sampCount += 1.0;
+        }
+    }
+    sigmaVariancePair /= sampCount;
+    float variance = max(0.0, sigmaVariancePair.y - sigmaVariancePair.x * sigmaVariancePair.x);
+    return variance;
+}
+
 
 [numthreads(8, 8, 1)]
 void CSMain(uint3 id : SV_DispatchThreadID)
@@ -118,84 +167,116 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     //init sum, weight & step width
     float2 step = float2(1.0f / width, 1.0f / height);
     
+   
+    
+    
+    
+    
+    
+    float4 pos = _PosTex.SampleLevel(sampler_PosTex, uv, 0);
     float4 sum = float4(0, 0, 0, 0);
     float weightSum = 0.0f;
 
-
-    //sample center normal && pos
-   // float4 normal = _NormalTex.SampleLevel(sampler_NormalTex, uv, 0);
-    float4 pos = _PosTex.SampleLevel(sampler_PosTex, uv, 0);
+    float currentPixelVariance = Variance(uv);
     
-    //iterate 5x5 blur kernel
-    for (uint i = 0; i < 25; i++)
+    
+    
+    
+    for (int j = 0; j < passCount; j++)
     {
-        //get offset uv coordinates
-        float2 currentUV = uv + offset[i] * step * stepScale;
-        //get new depth && check if background => skip background pixels
-        float currentDetph = _DepthTex.SampleLevel(sampler_DepthTex, currentUV, 0).r;
+        //Reset sum && weight
         
-        float deltaDepth = depth - currentDetph;
+        //increase wavelet step each iteration
+        stepScale += j;
+         //iterate 5x5 blur kernel
+        for (uint i = 0; i < 9; i++)
+        {
+        //get offset uv coordinates
+            float2 currentUV = uv + offset3x3[i] * step * stepScale;
+        //get new depth && check if background => skip background pixels
+            float currentDetph = _DepthTex.SampleLevel(sampler_DepthTex, currentUV, 0).r;
+        
+            float deltaDepth = depth - currentDetph;
         //if (deltaDepth != 0)
         //    continue;
         
-        float distDepth = dot(deltaDepth, deltaDepth);
-        distDepth *= farPlane;
-        float w_depth = min(exp(-distDepth / (colorSigma * colorSigmaScale)), 1.0f);
+            
+            float distDepth = dot(deltaDepth, deltaDepth);
+            distDepth *= farPlane;
+            float w_depth = min(exp(-distDepth / (colorSigma * colorSigmaScale * stepScale + 0.0001f)), 1.0f);
       
-        ////calculate color difference 
-        float4 tempColor = _MainTex.SampleLevel(sampler_MainTex, currentUV, 0);
-        float4 deltaC = color - tempColor;
-        float dist2 = dot(deltaC, deltaC);
-        float w_rt = min(exp(-dist2 / (colorSigma * colorSigmaScale)), 1.0f);
-        
-        //get delta of position, 
-        //float3 tempPos = _PosTex.SampleLevel(sampler_PosTex, currentUV, 0).rgb;
-        //float3 deltaPos = pos.rgb - tempPos;
-        //dist2 = dot(deltaPos, deltaPos);
-        //float w_pos = min(exp(-dist2 / (normalSigma)), 1.0f);
-        float tempLuminance = Energy(tempColor.rgb);
-        float3 rasterC = _AlbedoTex.SampleLevel(sampler_AlbedoTex, currentUV, 0).rgb;
-        float3 deltaRaster = rasterC - tempColor.rgb;
-        dist2 = dot(deltaC, deltaC);
-        float w_L = min(exp(-dist2 / (colorSigma * colorSigmaScale)), 1.0f);
+            ////calculate color difference 
+            float4 tempColor = _MainTex.SampleLevel(sampler_MainTex, currentUV, 0);
+            float4 deltaC = color - tempColor;
+            float dist2 = dot(deltaC, deltaC);
+        //    float w_rt = min(exp(-dist2 / (colorSigma * colorSigmaScale * currentPixelVariance + 0.0001f)), 1.0f);
+            float w_rt = min(exp(-dist2 / (colorSigma * colorSigmaScale + 0.0001f)), 1.0f);
+
+            float tempLuminance = Energy(tempColor.rgb);
+            float3 rasterC = _AlbedoTex.SampleLevel(sampler_AlbedoTex, currentUV, 0).rgb;
+            float3 deltaRaster = rasterC - tempColor.rgb;
+            dist2 = dot(deltaC, deltaC);
+            float w_L = min(exp(-dist2 / (colorSigma * colorSigmaScale)), 1.0f);
       
-        sum += tempColor * w_rt * w_depth * w_L;
-        weightSum += w_rt * blurKernel[i] * w_depth * w_L;
-        
-        
-        //sum += tempColor * w_rt * w_depth;
-        //weightSum += w_rt * blurKernel[i] * w_depth;
+            sum += tempColor * w_rt * w_depth * w_L * blurKernerl3x3[i];
+            weightSum += w_rt * w_depth * w_L * blurKernerl3x3[i];
+
+        }
+      
+        //adjust light bluring based on sum
+     //   colorSigmaScale = colorSigmaScale * weightSum;
 
     }
+    sum = sum / weightSum;
+
+    
+   
+    
+    
+  
+  //  float luminance = Energy(_frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0).rgb);
+    //luminance = min(0.0f, luminance);
+    //luminance = max(luminance, 1.0f);
+    ////rameHistory0.SampleLevel(sampler_frameHistory0, uv, 0).rgb);
+  //  float4 sumPrevious = float4(0, 0, 0, 0);
+  //  sumPrevious += _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0) * .9 * .9;
+  //  sumPrevious += _frameHistory1.SampleLevel(sampler_frameHistory1, uv, 0) * .8 * .8;
+  //  sumPrevious += _frameHistory2.SampleLevel(sampler_frameHistory2, uv, 0) * .7 * .7;
+  //  sumPrevious += _frameHistory3.SampleLevel(sampler_frameHistory3, uv, 0) * .6 * .6;
+  //  sumPrevious += _frameHistory4.SampleLevel(sampler_frameHistory4, uv, 0) * .5 * .5;
+  //  sumPrevious += _frameHistory5.SampleLevel(sampler_frameHistory5, uv, 0) * .4 * .4;
+  //  sumPrevious += _frameHistory6.SampleLevel(sampler_frameHistory6, uv, 0) * .3 * .3;
+  //  sumPrevious += _frameHistory7.SampleLevel(sampler_frameHistory7, uv, 0) * .2 * .2;
+  //  sumPrevious += _frameHistory8.SampleLevel(sampler_frameHistory8, uv, 0) * .1 * .1;
+  ////  sumPrevious += _frameHistory9.SampleLevel(sampler_frameHistory9, uv, 0);
+  ////  sumPrevious += rasterColor;
+  //  sumPrevious /= 2.6961;;
+
+    //sum = sum / weightSum;
+    
     float4 rasterColor = _AlbedoTex.SampleLevel(sampler_AlbedoTex, uv, 0);
     
-    //float luminance = Energy(rasterColor.rgb);
-    float luminance = Energy(_frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0).rgb);
-    luminance = min(0.0f, luminance);
-    luminance = max(luminance, 1.0f);
-    //rameHistory0.SampleLevel(sampler_frameHistory0, uv, 0).rgb);
-    float4 sumPrevious = float4(0, 0, 0, 0);
-    sumPrevious += _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0) * .9;
-    sumPrevious += _frameHistory1.SampleLevel(sampler_frameHistory1, uv, 0) * .8;
-    sumPrevious += _frameHistory2.SampleLevel(sampler_frameHistory2, uv, 0) * .7;
-    sumPrevious += _frameHistory3.SampleLevel(sampler_frameHistory3, uv, 0) * .6;
-    sumPrevious += _frameHistory4.SampleLevel(sampler_frameHistory4, uv, 0) * .5;
-    sumPrevious += _frameHistory5.SampleLevel(sampler_frameHistory5, uv, 0) * .4;
-    sumPrevious += _frameHistory6.SampleLevel(sampler_frameHistory6, uv, 0) * .3;
-    sumPrevious += _frameHistory7.SampleLevel(sampler_frameHistory7, uv, 0) * .2;
-    sumPrevious += _frameHistory8.SampleLevel(sampler_frameHistory8, uv, 0) * .1;
-    //sumPrevious += _frameHistory9.SampleLevel(sampler_frameHistory9, uv, 0);
-   // sumPrevious += rasterColor;
-    sumPrevious /= 4.5f;
-
-    sum = sum / weightSum;
-    
-  //  sum = lerp(sum, _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0), (luminance - 1));
-    float a = 0.2f;
+    float luminance = GrayScale(sum.rgb);
+    luminance = Energy(sum.rgb);
+    float a = 0.02f;
+    sum = lerp(sum, _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0),  currentPixelVariance);
+  //  sum = lerp(sum, sumPrevious, (1 - luminance));
     sum = lerp(sum, rasterColor, a);
+
+  
+    //aproxximate light map
+    //sum = color - (rasterColor * 0.25f);
+    //approximated diffuse lighting only
+ //   sum = sum / rasterColor;
+    
+    
+   // float grayScale = GrayScale(sum.rgb);
+   //// grayScale *= 0;
+   // sum = float4(grayScale, grayScale, grayScale, 1);
     //sum *= 0.8f;
     //sum += rasterColor * 0.2f;
 
    // sum = color * 0.8f;
     Result[id.xy] = float4(sum.rgb, 1);
+    //Result[id.xy] = float4(color.rgb, 1);
 }
