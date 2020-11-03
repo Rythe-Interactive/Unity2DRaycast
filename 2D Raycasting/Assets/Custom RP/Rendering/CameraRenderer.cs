@@ -7,13 +7,12 @@ namespace UnityEngine.Rendering
 
         private List<RenderTexture> m_previousTextures;
 
-        private RenderTexture m_VelocityBuffer;
         private PostProcessingDispatcher m_RTPostProcessing;
         private RenderTexture m_albedo;
         private RenderTexture m_DepthRT;
         private RenderTexture m_NormalRT;
-        private RenderTexture m_PositionRT;
-        private ComputeShader m_cs;
+        private RenderTexture m_MeshId;
+        private RenderTexture m_previousDepth;
         //command buffer and Camera
         private CommandBuffer m_buffer;
         private Camera m_cam;
@@ -59,7 +58,6 @@ namespace UnityEngine.Rendering
         private void Init()
         {
             Debug.Log("init RTS");
-            m_PositionRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
             //    m_PositionRT.filterMode = FilterMode.Bilinear;
             //     m_PositionRT.wrapMode = TextureWrapMode.Clamp;
 
@@ -69,9 +67,9 @@ namespace UnityEngine.Rendering
 
             m_DepthRT = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.Depth);
             m_albedo = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
-            m_VelocityBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
-            //   m_DepthRT.filterMode = FilterMode.Bilinear;
-            //   m_DepthRT.wrapMode = TextureWrapMode.Clamp;
+            //    m_VelocityBuffer = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+            m_MeshId = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
+            m_previousDepth = RenderTexture.GetTemporary(Screen.width, Screen.height, 16, RenderTextureFormat.ARGB32);
 
             m_RTPostProcessing = new PostProcessingDispatcher();
             m_previousTextures = new List<RenderTexture>();
@@ -122,12 +120,12 @@ namespace UnityEngine.Rendering
             {
                 ExecuteCustomPass(m_DepthRT, "DepthOnly");
                 ExecuteCustomPass(m_NormalRT, "NormalPass");
-                ExecuteCustomPass(m_PositionRT, "PositionPass");
+                //        ExecuteCustomPass(m_MeshId, "PositionPass");
                 ExecuteCustomPass(m_albedo, "SRPDefaultUnlit");
-                //   ExecuteCustomPass(m_VelocityBuffer, "VelocityPass");
 
                 ExecuteComputeShader(info.RayCaster);
-                // DisplayRenderTexture(m_VelocityBuffer);
+                ExecuteCustomPass(m_previousDepth, "DepthOnly");
+
             }
             //Submit buffer
             submitBuffer(m_buffer);
@@ -178,23 +176,37 @@ namespace UnityEngine.Rendering
                 return;
             }
             InitPostProcessing();
+            if (m_firstDraw)
+            {
+                m_previousDepth = m_DepthRT;
+                m_firstDraw = false;
+            }
+
 
 
             RenderTexture rt = master.Render();
 
 
-            m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_PositionRT, m_previousTextures, m_albedo);
+            m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_previousDepth, m_previousTextures, m_albedo);
 
-               m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT, m_AAMaterial);
+            rt = m_RTPostProcessing.Render();
+            m_previousTextures.Insert(0, rt);
+            m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
             //m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT);
 
             //     m_buffer.Blit(rt, master.ConvergedRT);
             //m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
 
             m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
+
+            //m_AAMaterial);
             //m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);
 
-            m_previousTextures.Insert(0, master.ConvergedRT);
+
+
+
+
+            //m_previousDepth.Create();
 
             //Trimm last list element 
             while (m_previousTextures.Count > 10)

@@ -7,6 +7,9 @@ SamplerState sampler_MainTex;
 
 Texture2D<float4> _DepthTex;
 SamplerState sampler_DepthTex;
+Texture2D<float4> _previousDepthTex;
+SamplerState sampler_previousDepthTex;
+
 
 //Texture2D<float4> _NormalTex;
 //SamplerState sampler_NormalTex;
@@ -22,7 +25,7 @@ SamplerState sampler_AlbedoTex;
 //Texture2D<float4> _Frame2;
 //SamplerState sampler_Frame2;
 //do not increase past 6 
-static const int passCount = 6;
+static const int passCount = 5;
 static const float farPlane = 1000.0f;
 
 static uint stepScale = 1;
@@ -167,21 +170,19 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     //init sum, weight & step width
     float2 step = float2(1.0f / width, 1.0f / height);
     
-   
-    
-    
     
     
     
     float4 pos = _PosTex.SampleLevel(sampler_PosTex, uv, 0);
+    
+    
     float4 sum = float4(0, 0, 0, 0);
+    
+    
     float weightSum = 0.0f;
 
     float currentPixelVariance = Variance(uv);
-    
-    
-    
-    
+   // for (int j = passCount; j > 0; j--)
     for (int j = 0; j < passCount; j++)
     {
         //Reset sum && weight
@@ -189,10 +190,10 @@ void CSMain(uint3 id : SV_DispatchThreadID)
         //increase wavelet step each iteration
         stepScale += j;
          //iterate 5x5 blur kernel
-        for (uint i = 0; i < 9; i++)
+        for (uint i = 0; i < 25; i++)
         {
         //get offset uv coordinates
-            float2 currentUV = uv + offset3x3[i] * step * stepScale;
+            float2 currentUV = uv + offset[i] * step * stepScale;
         //get new depth && check if background => skip background pixels
             float currentDetph = _DepthTex.SampleLevel(sampler_DepthTex, currentUV, 0).r;
         
@@ -218,8 +219,8 @@ void CSMain(uint3 id : SV_DispatchThreadID)
             dist2 = dot(deltaC, deltaC);
             float w_L = min(exp(-dist2 / (colorSigma * colorSigmaScale)), 1.0f);
       
-            sum += tempColor * w_rt * w_depth * w_L * blurKernerl3x3[i];
-            weightSum += w_rt * w_depth * w_L * blurKernerl3x3[i];
+            sum += tempColor * w_rt * w_depth * w_L * blurKernel[i];
+            weightSum += w_rt * w_depth * w_L * blurKernel[i];
 
         }
       
@@ -259,10 +260,13 @@ void CSMain(uint3 id : SV_DispatchThreadID)
     float luminance = GrayScale(sum.rgb);
     luminance = Energy(sum.rgb);
     float a = 0.02f;
-    sum = lerp(sum, _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0),  currentPixelVariance);
+  //  sum = lerp(sum, _frameHistory0.SampleLevel(sampler_frameHistory0, uv, 0), currentPixelVariance);
   //  sum = lerp(sum, sumPrevious, (1 - luminance));
-    sum = lerp(sum, rasterColor, a);
-
+    //sum = lerp(sum, rasterColor, a);
+ 
+    //if(currentId>1)
+    //    sum = 0;
+ 
   
     //aproxximate light map
     //sum = color - (rasterColor * 0.25f);

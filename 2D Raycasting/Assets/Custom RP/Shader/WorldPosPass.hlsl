@@ -46,7 +46,7 @@ float4 PositionPassFragment(VertexOutput input) : SV_TARGET
     //return float4((input.worldPos * 0.001f).rg, 1 - input.worldPos.b, 1.0f);
    // float d = LinearEyeDepth(input.worldPos, unity_MatrixVP);
     
-    //  return float4(input.vertID * 0.001f, 0, 0, 1);
-    return float4((input.worldPos * 0.001f).rgb, 1);
+    return float4(input.vertID, 0, 0, 1);
+    //return float4((input.worldPos * 0.001f).rgb, 1);
 }
 #endif

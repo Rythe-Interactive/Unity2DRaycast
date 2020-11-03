@@ -41,7 +41,7 @@ VertexOutput VelocityPassVertex(VertexInput input)
     output.clipPos = mul(unity_MatrixVP, worldPos);
     
     //assume view projection has not changed since I have not found out how to acces previos VP;
-    float4 prevPos = mul(unity_MatrixPreviousM, float4(input.pos.xyz, 1.0f));
+    float4 prevPos = mul(unity_MatrixPreviousMI, float4(input.pos.xyz, 1.0f));
     output.prevPos = mul(unity_MatrixVP, prevPos);
     return output;
 }
@@ -51,6 +51,12 @@ float4 VelocityPassFragment(VertexOutput input) : SV_TARGET
     float2 a = (input.clipPos.xy / input.clipPos.w) * 0.5f + 0.5f;
     float2 b = (input.prevPos.xy / input.prevPos.w) * 0.5f + 0.5f;
     velocity = float2(a - b);
+
+    if(length(velocity)>0.0001f)
+        return float4(1, 0, 0, 1);
+    else 
+        return float4(0, 0, 0, 1);
+    velocity *= 100.0f;
     //velocity = -velocity;
     return float4(velocity.rg, 0, 1);
 }
