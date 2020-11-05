@@ -71,10 +71,8 @@ public class RayTracingSprite : MonoBehaviour
         sRT.posMax = m_sr.bounds.max;
         sRT.depth = transform.position.z;
         sRT.TextureDimensions = Dimensions;
-
-
-
-
+        sRT.Width = sRT.posMax.x - sRT.posMin.x;
+        sRT.Height = sRT.posMax.y - sRT.posMin.y;
         return sRT;
     }
     public Texture2D GetTexture() => m_tex;
@@ -87,4 +85,6 @@ public struct SpriteRT
     public float depth;
     public int TextureIndex;
     public int TextureDimensions;
+    public float Width;
+    public float Height;
 }

@@ -313,7 +313,7 @@ public class RayCastMaster
             newSprite.TextureIndex = index;
             m_spriteRts.Add(newSprite);
         }
-         CreateComputeBuffer(ref m_SpriteBuffer, m_spriteRts, 28);
+         CreateComputeBuffer(ref m_SpriteBuffer, m_spriteRts, 36);
         m_tex2DArray512.Apply();
         m_tex2DArray256.Apply();
         m_tex2DArray128.Apply();
