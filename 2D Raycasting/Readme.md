@@ -1,11 +1,5 @@
-This is a basic custom Ray tracer for Unity.
-It Uses a custum Rendering Pipeline.
-Current known Issues:
-Buffers sometimes do not get properly cleared resulting in displaying geometry that has been destroyed / disabled.
+This is a basic custom Ray tracer for Unity implemented in a SRP using 2D sprites to ray trace.
+Checkout the Wiki page If you want to know more.
 
-
-Setup:
-Download SRP from Unity Github.
-I used Unity 2020.1.16f and the latest srp 8.xx, I can not assure that older or later versions are compatible. 
-https://github.com/UnityTechnologies/ScriptableRenderPipeline
- 
+Demo video:
+https://www.youtube.com/watch?v=JTVJtDoyYM8
