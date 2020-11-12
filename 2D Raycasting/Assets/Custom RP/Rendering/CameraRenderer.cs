@@ -106,9 +106,9 @@ namespace UnityEngine.Rendering
             BeginBuffer(m_buffer);
 
 
-
+#if UNITY_EDITOR
             //Do "normal" rendering if cam should not use ray tracing, cam is scene view cam or game view is not ingame
-            if (!m_camInfo.UseRayTracing || m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
+            if (m_cam.cameraType == CameraType.SceneView || !Application.isPlaying)
             {
                 DrawVisibleGeometry(useDynmaicBatching, useGPUInstancing);
                 DrawUnsupportedShaders();
@@ -119,14 +119,22 @@ namespace UnityEngine.Rendering
             else
             {
                 ExecuteCustomPass(m_DepthRT, "DepthOnly");
-                ExecuteCustomPass(m_NormalRT, "NormalPass");
+                //ExecuteCustomPass(m_NormalRT, "NormalPass");
                 //        ExecuteCustomPass(m_MeshId, "PositionPass");
                 ExecuteCustomPass(m_albedo, "SRPDefaultUnlit");
 
                 ExecuteComputeShader(info.RayCaster);
-                ExecuteCustomPass(m_previousDepth, "DepthOnly");
+                //  ExecuteCustomPass(m_previousDepth, "DepthOnly");
 
             }
+#else
+            ExecuteCustomPass(m_DepthRT, "DepthOnly");
+            //ExecuteCustomPass(m_NormalRT, "NormalPass");
+            //        ExecuteCustomPass(m_MeshId, "PositionPass");
+            ExecuteCustomPass(m_albedo, "SRPDefaultUnlit");
+
+            ExecuteComputeShader(info.RayCaster);
+#endif
             //Submit buffer
             submitBuffer(m_buffer);
 
@@ -190,17 +198,17 @@ namespace UnityEngine.Rendering
             m_RTPostProcessing.SetRenderTextures(rt, m_DepthRT, m_previousDepth, m_previousTextures, m_albedo);
 
             rt = m_RTPostProcessing.Render();
-            m_previousTextures.Insert(0, rt);
-            m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
-            //m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT);
+            //   m_previousTextures.Insert(0, rt);
+            //   m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
+            //    m_buffer.Blit(m_RTPostProcessing.Render(), master.ConvergedRT);
 
-            //     m_buffer.Blit(rt, master.ConvergedRT);
-            //m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
+            //m_buffer.Blit(rt, master.ConvergedRT);
+            m_buffer.Blit(rt, master.ConvergedRT, m_AAMaterial);
 
             m_buffer.Blit(master.ConvergedRT, BuiltinRenderTextureType.RenderTexture);
 
             //m_AAMaterial);
-            //m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);
+            //  m_buffer.Blit(rt, BuiltinRenderTextureType.RenderTexture);
 
 
 

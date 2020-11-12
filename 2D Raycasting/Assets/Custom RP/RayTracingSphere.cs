@@ -7,6 +7,7 @@ public class RayTracingSphere : MonoBehaviour
     public bool NeedsRebuilding = false;
     public void OnEnable()
     {
+        Debug.Log("on Enable!");
         NeedsRebuilding = true;
         RayCastMaster.SubscribeSphere(this);
     }

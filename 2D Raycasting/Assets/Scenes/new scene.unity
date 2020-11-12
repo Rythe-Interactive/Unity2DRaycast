@@ -174,7 +174,7 @@ MonoBehaviour:
   Emission: {r: 1, g: 0.8245816, b: 0, a: 0}
   Specular: {r: 1, g: 0.8780921, b: 0, a: 0}
   Smoothness: 0.38
-  LightStrenght: 2
+  LightStrenght: 6
   sphere:
     position:
       x: -5.443
@@ -191,8 +191,8 @@ MonoBehaviour:
       z: 0
     smoothness: 0.38
     emission:
-      x: 2
-      y: 1.6491632
+      x: 6
+      y: 4.9474897
       z: 0
 --- !u!114 &26706704
 MonoBehaviour:
@@ -1897,7 +1897,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &375783650
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2293,7 +2293,7 @@ GameObject:
   m_Layer: 0
   m_Name: Sphere
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: 5721338939258241955, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -2313,7 +2313,7 @@ MonoBehaviour:
   Emission: {r: 1, g: 0, b: 0, a: 0}
   Specular: {r: 1, g: 0, b: 0, a: 0}
   Smoothness: 0.38
-  LightStrenght: 3
+  LightStrenght: 7
   sphere:
     position:
       x: -6.37
@@ -2330,7 +2330,7 @@ MonoBehaviour:
       z: 0
     smoothness: 0.38
     emission:
-      x: 3
+      x: 7
       y: 0
       z: 0
 --- !u!114 &432027051
@@ -4372,9 +4372,9 @@ GameObject:
   - component: {fileID: 1058148565}
   - component: {fileID: 1058148564}
   m_Layer: 0
-  m_Name: Sphere (1)
+  m_Name: Light
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: 5721338939258241955, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -4394,7 +4394,7 @@ MonoBehaviour:
   Emission: {r: 0, g: 0.6603774, b: 0.055459492, a: 0}
   Specular: {r: 0.19737887, g: 1, b: 0, a: 0}
   Smoothness: 0.38
-  LightStrenght: 1
+  LightStrenght: 7
   sphere:
     position:
       x: -0.05
@@ -4412,8 +4412,8 @@ MonoBehaviour:
     smoothness: 0.38
     emission:
       x: 0
-      y: 0.6603774
-      z: 0.055459492
+      y: 4.6226416
+      z: 0.38821644
 --- !u!114 &1058148565
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6149,7 +6149,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1361018763}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a7fb42b39b450a34582c7e78f5e2560d, type: 3}
   m_Name: 
@@ -6376,7 +6376,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1374059824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6396,7 +6396,7 @@ MonoBehaviour:
   LightStrenght: 3
   sphere:
     position:
-      x: -2.8
+      x: -2.88
       y: 2.93
       z: 7.04
     radius: 1
@@ -6496,7 +6496,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1374059823}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -2.8, y: 2.93, z: 7.04}
+  m_LocalPosition: {x: -2.88, y: 2.93, z: 7.04}
   m_LocalScale: {x: 2, y: 2, z: 2}
   m_Children: []
   m_Father: {fileID: 0}
@@ -6915,7 +6915,7 @@ GameObject:
   m_Layer: 0
   m_Name: Sphere (2)
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: 5721338939258241955, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -6935,7 +6935,7 @@ MonoBehaviour:
   Emission: {r: 0, g: 0.15949917, b: 1, a: 0}
   Specular: {r: 0, g: 0.037703037, b: 1, a: 0}
   Smoothness: 0.38
-  LightStrenght: 1
+  LightStrenght: 7
   sphere:
     position:
       x: -0.05
@@ -6953,8 +6953,8 @@ MonoBehaviour:
     smoothness: 0.38
     emission:
       x: 0
-      y: 0.15949917
-      z: 1
+      y: 1.1164942
+      z: 7
 --- !u!114 &1477554104
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7257,9 +7257,9 @@ GameObject:
   - component: {fileID: 1488346778}
   - component: {fileID: 1488346777}
   m_Layer: 0
-  m_Name: Sphere (3)
+  m_Name: Light
   m_TagString: Untagged
-  m_Icon: {fileID: 0}
+  m_Icon: {fileID: 5721338939258241955, guid: 0000000000000000d000000000000000, type: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
@@ -7279,7 +7279,7 @@ MonoBehaviour:
   Emission: {r: 1, g: 0, b: 0.7671118, a: 0}
   Specular: {r: 1, g: 0, b: 0.630774, a: 0}
   Smoothness: 0.38
-  LightStrenght: 1
+  LightStrenght: 7
   sphere:
     position:
       x: -7.85
@@ -7296,9 +7296,9 @@ MonoBehaviour:
       z: 0.630774
     smoothness: 0.38
     emission:
-      x: 1
+      x: 7
       y: 0
-      z: 0.7671118
+      z: 5.3697824
 --- !u!114 &1488346778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9791,9 +9791,21 @@ PrefabInstance:
   m_Modification:
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 139740, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 168050, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 177638, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
       propertyPath: m_Name
       value: '[Graphy]'
+      objectReference: {fileID: 0}
+    - target: {fileID: 177638, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 11496292, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
       propertyPath: m_audioModuleState
@@ -9810,6 +9822,14 @@ PrefabInstance:
     - target: {fileID: 22424132, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
       propertyPath: m_AnchoredPosition.x
       value: -0.19995117
+      objectReference: {fileID: 0}
+    - target: {fileID: 22431670, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: -163.71997
+      objectReference: {fileID: 0}
+    - target: {fileID: 22431670, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: -93.63013
       objectReference: {fileID: 0}
     - target: {fileID: 22439978, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -9918,6 +9938,10 @@ PrefabInstance:
     - target: {fileID: 22477518, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
       propertyPath: m_AnchoredPosition.x
       value: -0.19995117
+      objectReference: {fileID: 0}
+    - target: {fileID: 1000013357413722, guid: 0abab5bb77339e4428787a870eb31bd3, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 224000010243477314, guid: 0abab5bb77339e4428787a870eb31bd3,
         type: 3}
@@ -10857,15 +10881,15 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2049252598}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fef9c11e20cb7c54eb22bd1f1b303292, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mainSpeed: 50
+  mainSpeed: 35
   shiftAdd: 250
   maxShift: 1000
-  camSens: 0.2
+  camSens: 0.15
   rotateOnlyIfMousedown: 1
   movementStaysFlat: 1
 --- !u!1 &2067278168

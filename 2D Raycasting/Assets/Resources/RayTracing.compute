@@ -12,7 +12,7 @@ float _Seed;
 float2 _Pixel;
 
 
-static const int SAMPLE_PER_PIXEL = 8;
+static const int SAMPLE_PER_PIXEL = 4;
 static const int MAX_BOUNCES = 6;
 static const float PI = 3.14159265f;
 static const float EPSILON = 0.0000001f;
@@ -424,14 +424,7 @@ float3 Shade(inout Ray ray, RayHit hit)
         float3 color = float3(0.05f, 0.1f, 0.8f);
         color = float3(0, 0, 0);
         return color;
-		//	return(0.5f, 0.3f, 1.0f);
-			// Sample the skybox and write it
-        float theta = acos(ray.direction.y) / -PI;
-        float phi = atan2(ray.direction.x, -ray.direction.z) / -PI * 0.5f;
-
-        return _SkyBoxTexture.SampleLevel(sampler_SkyBoxTexture, float2(phi, theta), 0).xyz;
-
-        return _SkyColor;
+	
     }
 }
 
@@ -475,7 +468,6 @@ void CSMain(uint3 id : SV_DispatchThreadID)
 
 	//clamp result to avoid fireflys
     result = ClampRadiance(result, float3(1.5f, 1.5f, 1.5f));
-
 	//return result
     Result[id.xy] = float4(result, 1);
 
